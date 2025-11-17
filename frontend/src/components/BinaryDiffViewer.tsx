@@ -123,7 +123,7 @@ function DiffRow({ chunk }: { chunk: DiffChunk }) {
           return (
             <span
               key={i}
-              className="px-1 rounded text-foreground text-black"
+              className="px-1 rounded text-black"
               style={{ backgroundColor: bgColor }}
             >
               {formatByte(byte)}

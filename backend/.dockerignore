@@ -1,0 +1,12 @@
+# Backend
+*.db
+*.db-shm
+*.db-wal
+data/
+tmp/
+.git
+.gitignore
+*.md
+.vscode
+.idea
+*.log

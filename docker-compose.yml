@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # Backend service (Go)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ecg-backend
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist database
+      - ./backend/data:/app/data
+      # Mount database file
+      - ./backend/ecg_data.db:/app/ecg_data.db
+    environment:
+      - PORT=3000
+      - DB_PATH=/app/ecg_data.db
+    restart: unless-stopped
+    networks:
+      - ecg-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend service (React + Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ecg-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - ecg-network
+    environment:
+      - VITE_API_URL=http://localhost:3000
+
+networks:
+  ecg-network:
+    driver: bridge
+
+volumes:
+  backend-data:
+    driver: local

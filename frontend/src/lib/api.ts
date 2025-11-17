@@ -1,3 +1,6 @@
+// API base URL - use environment variable or default to localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 export async function uploadBinaryFile(
   file: File,
   vendor?: string,
@@ -6,7 +9,7 @@ export async function uploadBinaryFile(
   form.append("file", file);
   if (vendor) form.append("vendor", vendor);
 
-  const res = await fetch("http://localhost:3000/upload/binary", {
+  const res = await fetch(`${API_BASE_URL}/upload/binary`, {
     method: "POST",
     body: form,
   });
@@ -21,7 +24,7 @@ export async function uploadYamlFile(file: File): Promise<any> {
   const form = new FormData();
   form.append("file", file);
 
-  const res = await fetch("http://localhost:3000/upload/yaml", {
+  const res = await fetch(`${API_BASE_URL}/upload/yaml`, {
     method: "POST",
     body: form,
   });
@@ -33,7 +36,7 @@ export async function uploadYamlFile(file: File): Promise<any> {
 }
 
 export async function fetchBinaryList() {
-  const res = await fetch("http://localhost:3000/get/list/binary");
+  const res = await fetch(`${API_BASE_URL}/get/list/binary`);
 
   if (!res.ok) {
     throw new Error("Failed to fetch binary list");
@@ -43,7 +46,7 @@ export async function fetchBinaryList() {
 }
 
 export async function fetchBinaryFile(name: string) {
-  const res = await fetch(`http://localhost:3000/get/binary/${name}`);
+  const res = await fetch(`${API_BASE_URL}/get/binary/${name}`);
 
   if (!res.ok) {
     throw new Error("Failed to fetch binary file");
@@ -64,7 +67,7 @@ export interface YamlConfigItem {
 }
 
 export async function fetchYamlList(): Promise<YamlConfigItem[]> {
-  const res = await fetch("http://localhost:3000/get/list/yaml");
+  const res = await fetch(`${API_BASE_URL}/get/list/yaml`);
 
   if (!res.ok) {
     throw new Error("Failed to fetch YAML config list");
@@ -74,7 +77,7 @@ export async function fetchYamlList(): Promise<YamlConfigItem[]> {
 }
 
 export async function fetchYamlConfig(name: string): Promise<string> {
-  const res = await fetch(`http://localhost:3000/get/yaml/${name}`);
+  const res = await fetch(`${API_BASE_URL}/get/yaml/${name}`);
 
   if (!res.ok) {
     throw new Error("Failed to fetch YAML config");
@@ -88,7 +91,7 @@ export async function createYamlConfig(
   yaml: string,
   fileName?: string,
 ): Promise<any> {
-  const res = await fetch("http://localhost:3000/upload/yaml", {
+  const res = await fetch(`${API_BASE_URL}/upload/yaml`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -113,7 +116,7 @@ export async function updateYamlConfig(
   newName?: string,
   fileName?: string,
 ): Promise<any> {
-  const res = await fetch(`http://localhost:3000/update/yaml/${name}`, {
+  const res = await fetch(`${API_BASE_URL}/update/yaml/${name}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -133,7 +136,7 @@ export async function updateYamlConfig(
 }
 
 export async function deleteYamlConfig(name: string): Promise<any> {
-  const res = await fetch(`http://localhost:3000/delete/yaml/${name}`, {
+  const res = await fetch(`${API_BASE_URL}/delete/yaml/${name}`, {
     method: "DELETE",
   });
 

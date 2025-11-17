@@ -23,6 +23,11 @@ import { useYamlConfig } from "@/hooks/useYamlConfig";
 import { Activity, LineChart } from "lucide-react";
 import { useEffect } from "react";
 import { fetchBinaryList, fetchBinaryFile } from "@/lib/api";
+import { ByteStatistics } from "@/components/ByteStatistics";
+import { FileInfo } from "@/components/FileInfo";
+import { BookmarkPanel } from "@/components/BookmarkPanel";
+import { CopyAsMenu } from "@/components/CopyAsMenu";
+import { useBookmarks } from "@/hooks/useBookmarks";
 
 interface FileData {
   name: string;
@@ -58,6 +63,14 @@ const Index = () => {
   const { yamlText, config, error, highlights, updateYaml } =
     useYamlConfig(currentBuffer);
 
+  const {
+    bookmarks,
+    addBookmark,
+    removeBookmark,
+    updateBookmark,
+    getBookmarkAtOffset,
+  } = useBookmarks(currentFile);
+
   const handleFileAdd = useCallback((file: File, buffer: ArrayBuffer) => {
     const newFile: FileData = {
       name: file.name,
@@ -71,9 +84,11 @@ const Index = () => {
   const handleFileRemove = useCallback(
     async (fileName: string) => {
       try {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
         // 1. Call backend DELETE
         const res = await fetch(
-          `http://localhost:3000/delete/binary/${fileName}`,
+          `${API_BASE_URL}/delete/binary/${fileName}`,
           {
             method: "DELETE",
           },
@@ -213,7 +228,7 @@ const Index = () => {
           {/* Left Panel */}
           <ResizablePanel defaultSize={22} minSize={15} maxSize={35}>
             <Tabs defaultValue="files" className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-4 rounded-none border-b border-panel-border">
+              <TabsList className="grid w-full grid-cols-5 rounded-none border-b border-panel-border">
                 <TabsTrigger
                   onClick={() => setSelectTab("files")}
                   value="files"
@@ -234,6 +249,12 @@ const Index = () => {
                   value="compare"
                 >
                   Compare
+                </TabsTrigger>
+                <TabsTrigger
+                  onClick={() => setSelectTab("info")}
+                  value="info"
+                >
+                  Info
                 </TabsTrigger>
               </TabsList>
               <TabsContent
@@ -308,6 +329,35 @@ const Index = () => {
               >
                 <ComparisonPanel files={files} />
               </TabsContent>
+              <TabsContent
+                value="info"
+                className={
+                  selectTab === "info"
+                    ? "flex-1 m-0 overflow-hidden bg-background"
+                    : "hidden"
+                }
+              >
+                <ResizablePanelGroup direction="vertical" className="h-full">
+                  <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+                    <FileInfo fileName={currentFile} buffer={currentBuffer} />
+                  </ResizablePanel>
+                  <ResizableHandle />
+                  <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+                    <ByteStatistics buffer={currentBuffer} />
+                  </ResizablePanel>
+                  <ResizableHandle />
+                  <ResizablePanel defaultSize={40} minSize={30}>
+                    <BookmarkPanel
+                      bookmarks={bookmarks}
+                      selection={selection}
+                      onAddBookmark={addBookmark}
+                      onRemoveBookmark={removeBookmark}
+                      onUpdateBookmark={updateBookmark}
+                      onJumpToOffset={handleJumpToOffset}
+                    />
+                  </ResizablePanel>
+                </ResizablePanelGroup>
+              </TabsContent>
             </Tabs>
           </ResizablePanel>
 
@@ -318,14 +368,17 @@ const Index = () => {
             <div className="h-full flex flex-col">
               <div className="p-4 border-b border-panel-border bg-panel-header">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-foreground">
-                    {currentFile || "Hex Viewer"}
-                  </h2>
-                  {currentBuffer && (
-                    <span className="text-xs text-muted-foreground">
-                      {(currentBuffer.byteLength / 1024).toFixed(1)} KB
-                    </span>
-                  )}
+                  <div>
+                    <h2 className="text-sm font-semibold text-foreground">
+                      {currentFile || "Hex Viewer"}
+                    </h2>
+                    {currentBuffer && (
+                      <span className="text-xs text-muted-foreground">
+                        {(currentBuffer.byteLength / 1024).toFixed(1)} KB
+                      </span>
+                    )}
+                  </div>
+                  <CopyAsMenu selection={selection} />
                 </div>
               </div>
               <div className="flex-1 overflow-hidden">
