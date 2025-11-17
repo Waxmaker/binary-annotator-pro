@@ -9,10 +9,12 @@ import { FilePanel } from '@/components/FilePanel';
 import { YamlEditor } from '@/components/YamlEditor';
 import { HexViewer } from '@/components/HexViewer';
 import { TagList } from '@/components/TagList';
-import { SelectionInspector } from '@/components/SelectionInspector';
+import { ECGInspector } from '@/components/ECGInspector';
+import { PatternFinder } from '@/components/PatternFinder';
+import { KaitaiGenerator } from '@/components/KaitaiGenerator';
 import { useHexSelection } from '@/hooks/useHexSelection';
 import { useYamlConfig } from '@/hooks/useYamlConfig';
-import { Binary } from 'lucide-react';
+import { Activity, FileCode } from 'lucide-react';
 
 interface FileData {
   name: string;
@@ -38,7 +40,7 @@ const Index = () => {
     selectRange,
   } = useHexSelection(currentBuffer);
 
-  const { yamlText, error, highlights, updateYaml } = useYamlConfig(currentBuffer);
+  const { yamlText, config, error, highlights, updateYaml } = useYamlConfig(currentBuffer);
 
   const handleFileAdd = useCallback((file: File, buffer: ArrayBuffer) => {
     const newFile: FileData = {
@@ -92,13 +94,20 @@ const Index = () => {
     [highlights, selectRange]
   );
 
+  const handleJumpToOffset = useCallback((offset: number) => {
+    setScrollToOffset(offset);
+  }, []);
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="h-14 border-b border-panel-border bg-panel-header flex items-center px-6">
         <div className="flex items-center gap-3">
-          <Binary className="h-6 w-6 text-primary" />
-          <h1 className="text-lg font-bold text-foreground">Binary Viewer</h1>
+          <Activity className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-lg font-bold text-foreground">ECG Analysis Workbench</h1>
+            <p className="text-xs text-muted-foreground">Binary format reverse engineering for medical devices</p>
+          </div>
         </div>
       </header>
 
@@ -106,20 +115,32 @@ const Index = () => {
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
           {/* Left Panel */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+          <ResizablePanel defaultSize={22} minSize={15} maxSize={35}>
             <Tabs defaultValue="files" className="h-full flex flex-col">
               <TabsList className="grid w-full grid-cols-2 rounded-none border-b border-panel-border">
                 <TabsTrigger value="files">Files</TabsTrigger>
-                <TabsTrigger value="yaml">YAML</TabsTrigger>
+                <TabsTrigger value="yaml">YAML Config</TabsTrigger>
               </TabsList>
-              <TabsContent value="files" className="flex-1 m-0">
-                <FilePanel
-                  files={files}
-                  currentFile={currentFile}
-                  onFileSelect={setCurrentFile}
-                  onFileAdd={handleFileAdd}
-                  onFileRemove={handleFileRemove}
-                />
+              <TabsContent value="files" className="flex-1 m-0 flex flex-col overflow-hidden">
+                <div className="flex-1 overflow-auto">
+                  <FilePanel
+                    files={files}
+                    currentFile={currentFile}
+                    onFileSelect={setCurrentFile}
+                    onFileAdd={handleFileAdd}
+                    onFileRemove={handleFileRemove}
+                  />
+                </div>
+                <div className="p-4 border-t border-panel-border space-y-3">
+                  <PatternFinder
+                    buffer={currentBuffer}
+                    onJumpToOffset={handleJumpToOffset}
+                  />
+                  <KaitaiGenerator
+                    config={config}
+                    fileName={currentFile}
+                  />
+                </div>
               </TabsContent>
               <TabsContent value="yaml" className="flex-1 m-0">
                 <YamlEditor
@@ -134,12 +155,19 @@ const Index = () => {
           <ResizableHandle />
 
           {/* Center Panel - Hex Viewer */}
-          <ResizablePanel defaultSize={50} minSize={30}>
+          <ResizablePanel defaultSize={48} minSize={30}>
             <div className="h-full flex flex-col">
               <div className="p-4 border-b border-panel-border bg-panel-header">
-                <h2 className="text-sm font-semibold text-foreground">
-                  {currentFile || 'Hex Viewer'}
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {currentFile || 'Hex Viewer'}
+                  </h2>
+                  {currentBuffer && (
+                    <span className="text-xs text-muted-foreground">
+                      {(currentBuffer.byteLength / 1024).toFixed(1)} KB
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex-1 overflow-hidden">
                 <HexViewer
@@ -159,7 +187,7 @@ const Index = () => {
           {/* Right Panel */}
           <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
             <ResizablePanelGroup direction="vertical">
-              <ResizablePanel defaultSize={50} minSize={30}>
+              <ResizablePanel defaultSize={40} minSize={25}>
                 <TagList
                   highlights={highlights}
                   onTagClick={handleTagClick}
@@ -170,8 +198,8 @@ const Index = () => {
 
               <ResizableHandle />
 
-              <ResizablePanel defaultSize={50} minSize={30}>
-                <SelectionInspector selection={selection} />
+              <ResizablePanel defaultSize={60} minSize={30}>
+                <ECGInspector selection={selection} />
               </ResizablePanel>
             </ResizablePanelGroup>
           </ResizablePanel>

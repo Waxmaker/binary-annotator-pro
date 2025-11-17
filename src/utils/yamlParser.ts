@@ -50,37 +50,81 @@ export function parseYamlConfig(yamlText: string): ParsedYamlResult {
 }
 
 export function getDefaultYaml(): string {
-  return `# Binary File Configuration
-# Define search patterns and tagged regions
+  return `# ECG/Holter Binary Format Configuration
+# Used for reverse-engineering medical device formats
 
 search:
-  signature:
+  # Common firmware signatures
+  firmware_magic:
     value: "DICM"
     color: "#FF6B6B"
   
-  patient_name:
-    value: "John"
+  # Delimiter patterns
+  sync_marker:
+    value: "FF FF"
     color: "#4ECDC4"
-
-tags:
-  file_header:
-    offset: 0x0000
-    size: 128
+  
+  # Device identifiers
+  nihon_kohden:
+    value: "NK"
     color: "#95E1D3"
   
-  preamble:
-    offset: 0x0080
-    size: 4
+  schiller:
+    value: "SCH"
     color: "#F38181"
+
+tags:
+  # File header (typical for most ECG formats)
+  file_header:
+    offset: 0x0000
+    size: 256
+    color: "#95E1D3"
+    # Often contains: magic bytes, version, device ID, patient info
   
-  metadata_block:
-    offset: 0x0200
+  # Metadata block
+  patient_metadata:
+    offset: 0x0100
     size: 512
     color: "#AA96DA"
+    # Patient name, ID, DOB, gender, acquisition time
   
-  data_segment:
-    offset: 0x1000
-    size: 2048
+  # Lead configuration
+  lead_config:
+    offset: 0x0300
+    size: 128
     color: "#FCBAD3"
+    # Number of leads, sample rate, gain settings, filters
+  
+  # Lead I samples (2 bytes per sample, 16-bit signed)
+  lead_i_data:
+    offset: 0x1000
+    size: 10000
+    color: "#FFD93D"
+    # 5000 samples at 500 Hz = 10 seconds
+  
+  # Lead II samples
+  lead_ii_data:
+    offset: 0x3710
+    size: 10000
+    color: "#6BCF7F"
+  
+  # Lead III samples  
+  lead_iii_data:
+    offset: 0x5E20
+    size: 10000
+    color: "#4D96FF"
+  
+  # Waveform footer / checksum
+  data_checksum:
+    offset: 0x8530
+    size: 4
+    color: "#FF6B9D"
+
+# Notes for reverse engineering:
+# - Most ECG formats use 16-bit signed integers for amplitude
+# - Sample rates: 250 Hz, 500 Hz, 1000 Hz are common
+# - 12-lead ECG: I, II, III, aVR, aVL, aVF, V1-V6
+# - Look for: sync bytes, CRC/checksums, timestamp fields
+# - Holter formats may include RR intervals, annotations
 `;
 }
