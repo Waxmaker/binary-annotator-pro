@@ -20,6 +20,13 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.GET("/get/binary/:fileName", h.GetBinaryByName)
 	e.GET("/get/yaml/:configName", h.GetYamlByName)
 
+	// Delete
+	e.DELETE("/delete/binary/:name", h.DeleteBinaryFile)
+	e.DELETE("/delete/yaml/:name", h.DeleteYamlConfig)
+
+	// Update
+	e.PUT("/update/yaml/:name", h.UpdateYamlConfig)
+
 	// Additional helpers
 	e.GET("/get/binary-by-id/:id", h.GetBinaryByID)
 }

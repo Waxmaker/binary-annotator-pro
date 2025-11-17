@@ -77,5 +77,3 @@ type ExtractedBlock struct {
 	Size      int64  `json:"size"`
 	Data      []byte `gorm:"type:blob" json:"-"`
 }
-
-// ---------------------------

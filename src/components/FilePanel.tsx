@@ -1,9 +1,10 @@
-import { useCallback } from 'react';
-import { Upload, File, X, Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { generateSampleECG, downloadSampleECG } from '@/utils/generateSampleECG';
-import { toast } from 'sonner';
+import { useCallback } from "react";
+import { Upload, File, X, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
+import { uploadBinaryFile } from "@/lib/api";
+import { generateSampleECG } from "@/utils/generateSampleECG";
 
 interface FilePanelProps {
   files: Array<{ name: string; size: number; buffer: ArrayBuffer }>;
@@ -20,16 +21,36 @@ export function FilePanel({
   onFileAdd,
   onFileRemove,
 }: FilePanelProps) {
+  const processFile = useCallback(
+    async (file: File) => {
+      try {
+        // 1️⃣ Send to backend
+        await uploadBinaryFile(file);
+
+        // 2️⃣ Load in-memory buffer
+        const buffer = await file.arrayBuffer();
+
+        // 3️⃣ Inject into app state (HexViewer)
+        onFileAdd(file, buffer);
+
+        toast.success(`Uploaded ${file.name}`);
+      } catch (err: any) {
+        toast.error(`Upload failed: ${err.message}`);
+        console.error(err);
+      }
+    },
+    [onFileAdd],
+  );
+
   const handleFileInput = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      const buffer = await file.arrayBuffer();
-      onFileAdd(file, buffer);
-      e.target.value = '';
+      await processFile(file);
+      e.target.value = "";
     },
-    [onFileAdd]
+    [processFile],
   );
 
   const handleDrop = useCallback(
@@ -38,10 +59,9 @@ export function FilePanel({
       const file = e.dataTransfer.files?.[0];
       if (!file) return;
 
-      const buffer = await file.arrayBuffer();
-      onFileAdd(file, buffer);
+      await processFile(file);
     },
-    [onFileAdd]
+    [processFile],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -50,19 +70,19 @@ export function FilePanel({
 
   const handleLoadSample = useCallback(() => {
     const buffer = generateSampleECG();
-    // Pass buffer directly, FilePanel will handle it
     const mockFile = {
-      name: 'sample_ecg.dat',
+      name: "sample_ecg.dat",
       arrayBuffer: async () => buffer,
     } as File;
+
     onFileAdd(mockFile, buffer);
-    toast.success('Sample ECG file loaded - 40KB demo file with 12-lead data');
+    toast.success("Sample ECG loaded (40 KB 12-lead dataset)");
   }, [onFileAdd]);
 
   const formatSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
   return (
@@ -98,14 +118,14 @@ export function FilePanel({
                 </Button>
               </div>
             </Card>
-            
+
             <Card className="p-4 bg-accent/10 border-accent/30">
               <p className="text-xs text-muted-foreground mb-3">
                 No files loaded. Load a sample ECG file to get started:
               </p>
-              <Button 
-                size="sm" 
-                variant="outline" 
+              <Button
+                size="sm"
+                variant="outline"
                 className="w-full"
                 onClick={handleLoadSample}
               >
@@ -121,8 +141,8 @@ export function FilePanel({
             key={file.name}
             className={`p-3 cursor-pointer transition-colors ${
               currentFile === file.name
-                ? 'bg-primary/20 border-primary'
-                : 'hover:bg-muted/50'
+                ? "bg-primary/20 border-primary"
+                : "hover:bg-muted/50"
             }`}
             onClick={() => onFileSelect(file.name)}
           >

@@ -212,6 +212,74 @@ func (h *Handler) GetYamlByName(c echo.Context) error {
 	return c.String(http.StatusOK, yc.Yaml)
 }
 
+// DeleteYamlConfig: delete YAML config by name
+func (h *Handler) DeleteYamlConfig(c echo.Context) error {
+	name := c.Param("name")
+	if name == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "missing config name"})
+	}
+
+	res := h.db.GormDB.Where("name = ?", name).Delete(&models.YamlConfig{})
+	if res.Error != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": res.Error.Error()})
+	}
+
+	if res.RowsAffected == 0 {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "config not found"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "yaml config deleted", "name": name})
+}
+
+// UpdateYamlConfig: update YAML config by name
+func (h *Handler) UpdateYamlConfig(c echo.Context) error {
+	name := c.Param("name")
+	if name == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "missing config name"})
+	}
+
+	// Parse request body
+	type UpdateReq struct {
+		Yaml     string `json:"yaml"`
+		NewName  string `json:"new_name"`
+		FileName string `json:"file_name"`
+	}
+	var req UpdateReq
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	if req.Yaml == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "yaml content required"})
+	}
+
+	// Find existing config
+	var yc models.YamlConfig
+	if err := h.db.GormDB.Where("name = ?", name).First(&yc).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "config not found"})
+	}
+
+	// Update fields
+	yc.Yaml = req.Yaml
+	if req.NewName != "" && req.NewName != name {
+		yc.Name = req.NewName
+	}
+
+	// Handle file association
+	if req.FileName != "" {
+		var f models.File
+		if err := h.db.GormDB.Where("name = ?", req.FileName).First(&f).Error; err == nil {
+			yc.FileID = &f.ID
+		}
+	}
+
+	if err := h.db.GormDB.Save(&yc).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update config"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"id": yc.ID, "name": yc.Name, "file_id": yc.FileID})
+}
+
 // small helper to avoid importing time in this file
 func timeNowUnix() int64 {
 	return 0 // placeholder - replaced at build (we keep simple)
