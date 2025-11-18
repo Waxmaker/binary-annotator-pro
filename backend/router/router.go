@@ -29,4 +29,16 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 
 	// Additional helpers
 	e.GET("/get/binary-by-id/:id", h.GetBinaryByID)
+
+	// AI Settings
+	aiSettingsHandler := handlers.NewAISettingsHandler(db)
+	e.GET("/ai/settings/:userId", aiSettingsHandler.GetAISettings)
+	e.POST("/ai/settings/:userId", aiSettingsHandler.SaveAISettings)
+	e.PUT("/ai/settings/:userId", aiSettingsHandler.SaveAISettings)
+	e.DELETE("/ai/settings/:userId", aiSettingsHandler.DeleteAISettings)
+	e.POST("/ai/test/:userId", aiSettingsHandler.TestAIConnection)
+
+	// AI WebSocket
+	wsHandler := handlers.NewWebSocketHandler(db)
+	e.GET("/ws/ai", wsHandler.HandleAI)
 }

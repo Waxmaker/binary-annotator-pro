@@ -77,3 +77,28 @@ type ExtractedBlock struct {
 	Size      int64  `json:"size"`
 	Data      []byte `gorm:"type:blob" json:"-"`
 }
+
+// AISettings stores AI provider configuration per user
+type AISettings struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	UserID string `gorm:"uniqueIndex;not null" json:"user_id"` // UUID from frontend localStorage
+
+	// Active provider
+	Provider string `json:"provider"` // "ollama", "openai", "claude"
+
+	// Ollama settings
+	OllamaURL   string `json:"ollama_url"`
+	OllamaModel string `json:"ollama_model"`
+
+	// OpenAI settings (encrypted in production)
+	OpenAIKey   string `json:"openai_key,omitempty"`
+	OpenAIModel string `json:"openai_model"`
+
+	// Claude settings (encrypted in production)
+	ClaudeKey   string `json:"claude_key,omitempty"`
+	ClaudeModel string `json:"claude_model"`
+}

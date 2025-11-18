@@ -8,8 +8,11 @@ import {
   suggestFieldType,
   downloadKaitaiTemplate,
 } from "@/utils/kaitaiHelper";
-import { Info, Download, Copy, Activity } from "lucide-react";
+import { Info, Download, Copy, Activity, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useState } from "react";
+import { useAISettings } from "@/hooks/useAISettings";
+import { predictFieldType } from "@/services/aiService";
 
 interface ECGInspectorProps {
   selection: {
@@ -20,6 +23,10 @@ interface ECGInspectorProps {
 }
 
 export function ECGInspector({ selection }: ECGInspectorProps) {
+  const { settings, isConfigured } = useAISettings();
+  const [aiPrediction, setAiPrediction] = useState<string | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+
   const handleCopyKaitai = () => {
     if (!selection) return;
     const snippet = generateKaitaiSnippet(selection.bytes, selection.start);
@@ -39,6 +46,31 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Selection exported");
+  };
+
+  const handleAIPredict = async () => {
+    if (!selection) return;
+    if (!isConfigured) {
+      toast.error("Please configure AI settings first");
+      return;
+    }
+
+    setIsLoadingAI(true);
+    setAiPrediction(null);
+
+    try {
+      const response = await predictFieldType(selection.bytes, selection.start);
+      if (response.success && response.data) {
+        setAiPrediction(response.data);
+        toast.success("AI prediction completed");
+      } else {
+        toast.error(response.error || "AI prediction failed");
+      }
+    } catch (error: any) {
+      toast.error(`Error: ${error.message}`);
+    } finally {
+      setIsLoadingAI(false);
+    }
   };
 
   if (!selection || selection.bytes.length === 0) {
@@ -74,6 +106,17 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
             <h2 className="text-sm font-semibold text-foreground">Converter</h2>
           </div>
           <div className="flex gap-1">
+            <Button
+              variant={isConfigured ? "default" : "ghost"}
+              size="sm"
+              className="h-7 px-2 gap-1"
+              onClick={handleAIPredict}
+              disabled={isLoadingAI}
+              title={isConfigured ? "AI Predict Type" : "Configure AI first"}
+            >
+              <Sparkles className="h-3 w-3" />
+              {isLoadingAI && <span className="text-[10px]">...</span>}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -127,6 +170,21 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
             </div>
           </div>
         </Card>
+
+        {/* AI Prediction */}
+        {aiPrediction && (
+          <Card className="p-3 bg-primary/5 border-primary/30">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <h3 className="text-xs font-semibold text-foreground">AI Prediction</h3>
+              </div>
+              <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">
+                {aiPrediction}
+              </p>
+            </div>
+          </Card>
+        )}
 
         {/* Hex & Binary */}
         <div className="space-y-2">

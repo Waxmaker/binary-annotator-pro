@@ -28,6 +28,7 @@ import {
   BarChart3,
   GitCompare,
   Info,
+  Settings,
 } from "lucide-react";
 import { useEffect } from "react";
 import { fetchBinaryList, fetchBinaryFile } from "@/lib/api";
@@ -37,6 +38,8 @@ import { BookmarkPanel } from "@/components/BookmarkPanel";
 import { CopyAsMenu } from "@/components/CopyAsMenu";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { PatternSearch } from "@/components/PatternSearch";
+import { PatternClustering } from "@/components/PatternClustering";
+import { SettingsDialog } from "@/components/SettingsDialog";
 
 interface FileData {
   name: string;
@@ -47,6 +50,7 @@ interface FileData {
 const Index = () => {
   const navigate = useNavigate();
   const [selectTab, setSelectTab] = useState<string>("files");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [files, setFiles] = useState<FileData[]>([]);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [scrollToOffset, setScrollToOffset] = useState<number | null>(null);
@@ -223,16 +227,29 @@ const Index = () => {
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate("/ecg-viewer")}
-          className="gap-2"
-        >
-          <LineChart className="h-4 w-4" />
-          Sample Viewer
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSettingsOpen(true)}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            AI Settings
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/ecg-viewer")}
+            className="gap-2"
+          >
+            <LineChart className="h-4 w-4" />
+            Sample Viewer
+          </Button>
+        </div>
       </header>
+
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
@@ -330,6 +347,8 @@ const Index = () => {
                       error={error}
                       currentConfigName={currentConfigName}
                       onConfigSaved={handleConfigSaved}
+                      buffer={currentBuffer}
+                      fileName={currentFile}
                     />
                   </ResizablePanel>
                 </ResizablePanelGroup>
