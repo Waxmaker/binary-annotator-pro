@@ -25,8 +25,8 @@ type RegisterRequest struct {
 }
 
 type AuthResponse struct {
-	Token string       `json:"token"`
-	User  models.User  `json:"user"`
+	Token string      `json:"token"`
+	User  models.User `json:"user"`
 }
 
 // Register creates a new user account
@@ -38,7 +38,7 @@ func (h *Handler) Register(c echo.Context) error {
 
 	// Check if user already exists
 	var existingUser models.User
-	if err := h.DB.GormDB.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
+	if err := h.db.GormDB.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
 		return c.JSON(http.StatusConflict, map[string]string{"error": "Email already registered"})
 	}
 
@@ -55,7 +55,7 @@ func (h *Handler) Register(c echo.Context) error {
 		Name:         req.Name,
 	}
 
-	if err := h.DB.GormDB.Create(&user).Error; err != nil {
+	if err := h.db.GormDB.Create(&user).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create user"})
 	}
 
@@ -80,7 +80,7 @@ func (h *Handler) Login(c echo.Context) error {
 
 	// Find user by email
 	var user models.User
-	if err := h.DB.GormDB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+	if err := h.db.GormDB.Where("email = ?", req.Email).First(&user).Error; err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid email or password"})
 	}
 
@@ -106,7 +106,7 @@ func (h *Handler) GetCurrentUser(c echo.Context) error {
 	userID := c.Get("user_id").(uint)
 
 	var user models.User
-	if err := h.DB.GormDB.First(&user, userID).Error; err != nil {
+	if err := h.db.GormDB.First(&user, userID).Error; err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
 	}
 
