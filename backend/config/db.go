@@ -37,7 +37,7 @@ func InitDB(path string) (*DB, error) {
 	sqldb.SetConnMaxLifetime(time.Minute * 5)
 
 	// Auto migrate
-	if err := gdb.AutoMigrate(&models.File{}, &models.YamlConfig{}, &models.Tag{}, &models.SearchResult{}, &models.Note{}, &models.ExtractedBlock{}); err != nil {
+	if err := gdb.AutoMigrate(&models.File{}, &models.YamlConfig{}, &models.Tag{}, &models.SearchResult{}, &models.Note{}, &models.ExtractedBlock{}, &models.User{}); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}
 
