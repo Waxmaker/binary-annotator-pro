@@ -15,12 +15,20 @@ import { YamlConfigList } from "@/components/YamlConfigList";
 import { HexViewer } from "@/components/HexViewer";
 import { TagList } from "@/components/TagList";
 import { ECGInspector } from "@/components/ECGInspector";
-import { PatternFinder } from "@/components/PatternFinder";
 import { AdvancedVisualizations } from "@/components/AdvancedVisualizations";
 import { ComparisonPanel } from "@/components/ComparisonPanel";
 import { useHexSelection } from "@/hooks/useHexSelection";
 import { useYamlConfig } from "@/hooks/useYamlConfig";
-import { Activity, LineChart } from "lucide-react";
+import {
+  Activity,
+  LineChart,
+  FolderOpen,
+  FileCode,
+  GitBranch,
+  BarChart3,
+  GitCompare,
+  Info,
+} from "lucide-react";
 import { useEffect } from "react";
 import { fetchBinaryList, fetchBinaryFile } from "@/lib/api";
 import { ByteStatistics } from "@/components/ByteStatistics";
@@ -28,6 +36,7 @@ import { FileInfo } from "@/components/FileInfo";
 import { BookmarkPanel } from "@/components/BookmarkPanel";
 import { CopyAsMenu } from "@/components/CopyAsMenu";
 import { useBookmarks } from "@/hooks/useBookmarks";
+import { PatternSearch } from "@/components/PatternSearch";
 
 interface FileData {
   name: string;
@@ -84,15 +93,13 @@ const Index = () => {
   const handleFileRemove = useCallback(
     async (fileName: string) => {
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const API_BASE_URL =
+          import.meta.env.VITE_API_URL || "http://localhost:3000";
 
         // 1. Call backend DELETE
-        const res = await fetch(
-          `${API_BASE_URL}/delete/binary/${fileName}`,
-          {
-            method: "DELETE",
-          },
-        );
+        const res = await fetch(`${API_BASE_URL}/delete/binary/${fileName}`, {
+          method: "DELETE",
+        });
 
         if (!res.ok) {
           throw new Error(`Failed to delete file on server`);
@@ -150,9 +157,14 @@ const Index = () => {
     [highlights, selectRange],
   );
 
-  const handleJumpToOffset = useCallback((offset: number) => {
-    setScrollToOffset(offset);
-  }, []);
+  const handleJumpToOffset = useCallback(
+    (offset: number, length: number = 1) => {
+      setScrollToOffset(offset);
+      // Auto-select the byte(s) at this offset for visual feedback
+      selectRange(offset, offset + length - 1);
+    },
+    [selectRange],
+  );
 
   const handleLoadConfig = useCallback(
     (name: string, yaml: string) => {
@@ -228,32 +240,53 @@ const Index = () => {
           {/* Left Panel */}
           <ResizablePanel defaultSize={22} minSize={15} maxSize={35}>
             <Tabs defaultValue="files" className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-5 rounded-none border-b border-panel-border">
+              <TabsList className="grid w-full h-auto grid-cols-3 rounded-none border-b border-panel-border">
                 <TabsTrigger
                   onClick={() => setSelectTab("files")}
                   value="files"
+                  className="gap-1.5"
                 >
+                  <FolderOpen className="h-4 w-4" />
                   Files
                 </TabsTrigger>
-                <TabsTrigger onClick={() => setSelectTab("yaml")} value="yaml">
+                <TabsTrigger
+                  onClick={() => setSelectTab("yaml")}
+                  value="yaml"
+                  className="gap-1.5"
+                >
+                  <FileCode className="h-4 w-4" />
                   Config
+                </TabsTrigger>
+                <TabsTrigger
+                  onClick={() => setSelectTab("patterns")}
+                  value="patterns"
+                  className="gap-1.5"
+                >
+                  <GitBranch className="h-4 w-4" />
+                  Patterns
                 </TabsTrigger>
                 <TabsTrigger
                   onClick={() => setSelectTab("analysis")}
                   value="analysis"
+                  className="gap-1.5"
                 >
+                  <BarChart3 className="h-4 w-4" />
                   Analysis
                 </TabsTrigger>
                 <TabsTrigger
                   onClick={() => setSelectTab("compare")}
                   value="compare"
+                  className="gap-1.5"
                 >
+                  <GitCompare className="h-4 w-4" />
                   Compare
                 </TabsTrigger>
                 <TabsTrigger
                   onClick={() => setSelectTab("info")}
                   value="info"
+                  className="gap-1.5"
                 >
+                  <Info className="h-4 w-4" />
                   Info
                 </TabsTrigger>
               </TabsList>
@@ -265,21 +298,13 @@ const Index = () => {
                     : "hidden"
                 }
               >
-                <div className="flex-1 overflow-auto">
-                  <FilePanel
-                    files={files}
-                    currentFile={currentFile}
-                    onFileSelect={setCurrentFile}
-                    onFileAdd={handleFileAdd}
-                    onFileRemove={handleFileRemove}
-                  />
-                </div>
-                <div className="p-4 border-t border-panel-border space-y-3">
-                  <PatternFinder
-                    buffer={currentBuffer}
-                    onJumpToOffset={handleJumpToOffset}
-                  />
-                </div>
+                <FilePanel
+                  files={files}
+                  currentFile={currentFile}
+                  onFileSelect={setCurrentFile}
+                  onFileAdd={handleFileAdd}
+                  onFileRemove={handleFileRemove}
+                />
               </TabsContent>
               <TabsContent
                 value="yaml"
@@ -307,6 +332,24 @@ const Index = () => {
                       onConfigSaved={handleConfigSaved}
                     />
                   </ResizablePanel>
+                </ResizablePanelGroup>
+              </TabsContent>
+              <TabsContent
+                value="patterns"
+                className={
+                  selectTab === "patterns"
+                    ? "flex-1 m-0 flex flex-col overflow-hidden bg-background"
+                    : "hidden"
+                }
+              >
+                <ResizablePanelGroup direction="vertical" className="h-full">
+                  <ResizablePanel defaultSize={50} minSize={30}>
+                    <PatternSearch
+                      buffer={currentBuffer}
+                      onJumpToOffset={handleJumpToOffset}
+                    />
+                  </ResizablePanel>
+                  <ResizableHandle />
                 </ResizablePanelGroup>
               </TabsContent>
               <TabsContent

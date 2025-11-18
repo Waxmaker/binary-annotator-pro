@@ -1,11 +1,15 @@
-import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button';
-import { formatAddress } from '@/utils/binaryUtils';
-import { convertBytesECG, formatHexBytesSpaced } from '@/utils/conversionsECG';
-import { generateKaitaiSnippet, suggestFieldType, downloadKaitaiTemplate } from '@/utils/kaitaiHelper';
-import { Info, Download, Copy, Activity } from 'lucide-react';
-import { toast } from 'sonner';
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { formatAddress } from "@/utils/binaryUtils";
+import { convertBytesECG, formatHexBytesSpaced } from "@/utils/conversionsECG";
+import {
+  generateKaitaiSnippet,
+  suggestFieldType,
+  downloadKaitaiTemplate,
+} from "@/utils/kaitaiHelper";
+import { Info, Download, Copy, Activity } from "lucide-react";
+import { toast } from "sonner";
 
 interface ECGInspectorProps {
   selection: {
@@ -20,19 +24,21 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
     if (!selection) return;
     const snippet = generateKaitaiSnippet(selection.bytes, selection.start);
     navigator.clipboard.writeText(snippet);
-    toast.success('Kaitai snippet copied to clipboard');
+    toast.success("Kaitai snippet copied to clipboard");
   };
 
   const handleExportBytes = () => {
     if (!selection) return;
-    const blob = new Blob([new Uint8Array(selection.bytes)], { type: 'application/octet-stream' });
+    const blob = new Blob([new Uint8Array(selection.bytes)], {
+      type: "application/octet-stream",
+    });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `selection_${selection.start.toString(16)}.bin`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Selection exported');
+    toast.success("Selection exported");
   };
 
   if (!selection || selection.bytes.length === 0) {
@@ -41,7 +47,7 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
         <div className="p-4 border-b border-panel-border bg-panel-header">
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">ECG Inspector</h2>
+            <h2 className="text-sm font-semibold text-foreground">Converter</h2>
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -65,7 +71,7 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">ECG Inspector</h2>
+            <h2 className="text-sm font-semibold text-foreground">Converter</h2>
           </div>
           <div className="flex gap-1">
             <Button
@@ -108,12 +114,16 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Size:</span>
-              <span className="font-mono font-bold text-primary">{size} bytes</span>
+              <span className="font-mono font-bold text-primary">
+                {size} bytes
+              </span>
             </div>
             <Separator />
             <div className="flex justify-between">
               <span className="text-muted-foreground">Suggested KSY type:</span>
-              <span className="font-mono text-accent text-xs">{suggestedType}</span>
+              <span className="font-mono text-accent text-xs">
+                {suggestedType}
+              </span>
             </div>
           </div>
         </Card>
@@ -140,7 +150,9 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
               </div>
               <Separator />
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Bit Flags (first byte):</p>
+                <p className="text-xs text-muted-foreground mb-1">
+                  Bit Flags (first byte):
+                </p>
                 <p className="text-xs font-mono text-accent">
                   {conversions.bitFlags}
                 </p>
@@ -242,21 +254,29 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
             <Card className="p-3 space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Float32 (LE):</span>
-                <span className="font-mono">{conversions.float32LE.toFixed(6)}</span>
+                <span className="font-mono">
+                  {conversions.float32LE.toFixed(6)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Float32 (BE):</span>
-                <span className="font-mono">{conversions.float32BE.toFixed(6)}</span>
+                <span className="font-mono">
+                  {conversions.float32BE.toFixed(6)}
+                </span>
               </div>
               {size >= 8 && (
                 <>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Float64 (LE):</span>
-                    <span className="font-mono">{conversions.float64LE.toFixed(6)}</span>
+                    <span className="font-mono">
+                      {conversions.float64LE.toFixed(6)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Float64 (BE):</span>
-                    <span className="font-mono">{conversions.float64BE.toFixed(6)}</span>
+                    <span className="font-mono">
+                      {conversions.float64BE.toFixed(6)}
+                    </span>
                   </div>
                 </>
               )}
@@ -281,7 +301,8 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
         {/* TODO: Go Backend Integration */}
         <Card className="p-3 bg-muted/30 border-dashed">
           <p className="text-xs text-muted-foreground italic">
-            🚧 <strong>TODO:</strong> Replace with Go backend API call for advanced analysis
+            🚧 <strong>TODO:</strong> Replace with Go backend API call for
+            advanced analysis
           </p>
         </Card>
       </div>
