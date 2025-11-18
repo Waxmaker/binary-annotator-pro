@@ -102,3 +102,31 @@ type AISettings struct {
 	ClaudeKey   string `json:"claude_key,omitempty"`
 	ClaudeModel string `json:"claude_model"`
 }
+
+// ChatSession represents a chat conversation
+type ChatSession struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	UserID string `gorm:"index;not null" json:"user_id"` // UUID from frontend
+	Title  string `json:"title"`                         // Auto-generated from first message
+	FileID *uint  `json:"file_id,omitempty"`             // Optional: associated binary file
+
+	Messages []ChatMessage `gorm:"foreignKey:SessionID" json:"messages,omitempty"`
+}
+
+// ChatMessage represents a single message in a chat
+type ChatMessage struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	SessionID uint   `gorm:"index;not null" json:"session_id"`
+	Role      string `gorm:"not null" json:"role"` // "user", "assistant", "system", "tool"
+	Content   string `gorm:"type:text" json:"content"`
+
+	// For tool calls
+	ToolCalls string `gorm:"type:text" json:"tool_calls,omitempty"` // JSON encoded
+	ToolName  string `json:"tool_name,omitempty"`
+}

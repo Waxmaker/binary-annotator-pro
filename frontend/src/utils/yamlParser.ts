@@ -1,8 +1,12 @@
 import yaml from 'js-yaml';
+import { DataType } from './typeSearch';
+
+export type SearchType = DataType | 'hex';
 
 export interface SearchRule {
   value: string;
   color: string;
+  type?: SearchType; // Default to 'string-ascii' if not specified
 }
 
 export interface TagRule {
@@ -54,24 +58,34 @@ export function getDefaultYaml(): string {
 # Used for reverse-engineering medical device formats
 
 search:
-  # Common firmware signatures
+  # Common firmware signatures (ASCII string)
   firmware_magic:
     value: "DICM"
+    type: string-ascii
     color: "#FF6B6B"
-  
-  # Delimiter patterns
+
+  # Delimiter patterns (hex bytes)
   sync_marker:
     value: "FF FF"
+    type: hex
     color: "#4ECDC4"
-  
-  # Device identifiers
+
+  # Device identifiers (ASCII)
   nihon_kohden:
     value: "NK"
+    type: string-ascii
     color: "#95E1D3"
-  
+
   schiller:
     value: "SCH"
+    type: string-ascii
     color: "#F38181"
+
+  # Example: Search for specific integer value
+  # sample_rate_500:
+  #   value: "500"
+  #   type: uint16le
+  #   color: "#FFD93D"
 
 tags:
   # File header (typical for most ECG formats)

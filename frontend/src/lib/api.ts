@@ -146,3 +146,47 @@ export async function deleteYamlConfig(name: string): Promise<any> {
 
   return res.json();
 }
+
+// Binary Search API
+
+export interface SearchRequest {
+  file_name: string;
+  value: string;
+  type: string;
+}
+
+export interface SearchResult {
+  offset: number;
+  length: number;
+  value?: string;
+}
+
+export interface SearchResponse {
+  matches: SearchResult[];
+  count: number;
+}
+
+export async function searchBinary(
+  fileName: string,
+  value: string,
+  type: string
+): Promise<SearchResponse> {
+  const res = await fetch(`${API_BASE_URL}/search`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      file_name: fileName,
+      value,
+      type,
+    }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Search failed");
+  }
+
+  return res.json();
+}

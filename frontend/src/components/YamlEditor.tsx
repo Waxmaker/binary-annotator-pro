@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,18 +12,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, CheckCircle2, Save, Sparkles } from "lucide-react";
+import { Save, Sparkles } from "lucide-react";
 import { createYamlConfig, updateYamlConfig } from "@/lib/api";
 import { useAISettings } from "@/hooks/useAISettings";
 import { autoGenerateYAMLTags } from "@/services/aiService";
 import { calculateEntropy } from "@/utils/binaryAnalysis";
 import { findRepeatingPattern } from "@/utils/searchPatterns";
 import { findPeriodicStructures } from "@/utils/patternClustering";
+import { parseYamlConfig } from "@/utils/yamlParser";
 
 interface YamlEditorProps {
   value: string;
   onChange: (value: string) => void;
-  error: string | null;
   currentConfigName?: string;
   onConfigSaved?: () => void;
   buffer: ArrayBuffer | null;
@@ -34,7 +33,6 @@ interface YamlEditorProps {
 export function YamlEditor({
   value,
   onChange,
-  error,
   currentConfigName,
   onConfigSaved,
   buffer,
@@ -45,8 +43,52 @@ export function YamlEditor({
   const [configName, setConfigName] = useState("");
   const [saving, setSaving] = useState(false);
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [localValue, setLocalValue] = useState(value);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Sync localValue when value changes externally (e.g., loading a config)
+  useEffect(() => {
+    setLocalValue(value);
+    setHasChanges(false);
+  }, [value]);
+
+  const handleApply = () => {
+    onChange(localValue);
+    setHasChanges(false);
+  };
+
+  const handleLocalChange = (newValue: string) => {
+    setLocalValue(newValue);
+    setHasChanges(newValue !== value);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+
+      // Insert tab character at cursor position
+      const newValue =
+        localValue.substring(0, start) + "  " + localValue.substring(end);
+
+      setLocalValue(newValue);
+      setHasChanges(newValue !== value);
+
+      // Set cursor position after the inserted tab
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 2;
+      }, 0);
+    }
+  };
 
   const handleSaveClick = () => {
+    // Apply changes before saving
+    if (hasChanges) {
+      onChange(localValue);
+      setHasChanges(false);
+    }
     setConfigName(currentConfigName || "");
     setSaveDialogOpen(true);
   };
@@ -111,7 +153,9 @@ export function YamlEditor({
             cleanedData = cleanedData.replace(/\n?```$/, "");
           }
 
+          setLocalValue(cleanedData.trim());
           onChange(cleanedData.trim());
+          setHasChanges(false);
           toast.success("AI generated YAML tags successfully");
         } else {
           toast.error(response.error || "AI generation failed");
@@ -130,20 +174,30 @@ export function YamlEditor({
       return;
     }
 
+    // Use the current value (which was already applied by handleSaveClick)
+    const yamlToSave = value;
+
+    // Validate YAML before saving
+    const { error: validationError } = parseYamlConfig(yamlToSave);
+    if (validationError) {
+      toast.error(`Invalid YAML: ${validationError}`);
+      return;
+    }
+
     try {
       setSaving(true);
 
       if (currentConfigName && currentConfigName === configName) {
         // Update existing config
-        await updateYamlConfig(currentConfigName, value);
+        await updateYamlConfig(currentConfigName, yamlToSave);
         toast.success(`Updated config: ${configName}`);
       } else if (currentConfigName && currentConfigName !== configName) {
         // Save as new with different name
-        await createYamlConfig(configName, value);
+        await createYamlConfig(configName, yamlToSave);
         toast.success(`Created new config: ${configName}`);
       } else {
         // Create new config
-        await createYamlConfig(configName, value);
+        await createYamlConfig(configName, yamlToSave);
         toast.success(`Saved config: ${configName}`);
       }
 
@@ -189,38 +243,48 @@ export function YamlEditor({
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
-          {error ? (
-            <Alert variant="destructive" className="flex-shrink-0">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-xs">{error}</AlertDescription>
-            </Alert>
-          ) : (
-            <Alert className="flex-shrink-0 border-accent bg-accent/10">
-              <CheckCircle2 className="h-4 w-4 text-accent" />
-              <AlertDescription className="text-xs text-accent-foreground">
-                YAML configuration is valid
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <Textarea
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="flex-1 font-mono text-xs resize-none bg-hex-background border-border"
-            placeholder="Enter YAML configuration..."
-            spellCheck={false}
-          />
+          <div className="flex-1 flex flex-col gap-2">
+            <Textarea
+              value={localValue}
+              onChange={(e) => handleLocalChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="flex-1 font-mono text-xs resize-none bg-hex-background border-border"
+              placeholder="Enter YAML configuration..."
+              spellCheck={false}
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="default"
+                onClick={handleApply}
+                disabled={!hasChanges}
+                className="h-8"
+              >
+                Apply Changes
+              </Button>
+              {hasChanges && (
+                <span className="text-xs text-muted-foreground">
+                  You have unsaved changes
+                </span>
+              )}
+            </div>
+          </div>
 
           <div className="flex-shrink-0 text-xs text-muted-foreground space-y-1">
             <p className="font-semibold">Configuration Format:</p>
             <ul className="list-disc list-inside space-y-0.5 ml-2">
               <li>
-                <code className="text-primary">search:</code> Define text
-                patterns to highlight
+                <code className="text-primary">search:</code> Search patterns with type support
               </li>
               <li>
-                <code className="text-primary">tags:</code> Define offset-based
-                regions
+                <code className="text-primary">tags:</code> Define offset-based regions
+              </li>
+              <li>
+                Search types:{" "}
+                <code className="text-primary">hex</code>,{" "}
+                <code className="text-primary">string-ascii</code>,{" "}
+                <code className="text-primary">int16le</code>,{" "}
+                <code className="text-primary">uint32le</code>, etc.
               </li>
               <li>
                 Colors in hex format (e.g.,{" "}

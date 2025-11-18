@@ -1,7 +1,7 @@
-import { Search, Tag } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { formatAddress } from '@/utils/binaryUtils';
-import { HighlightRange } from '@/utils/colorUtils';
+import { Search, Tag } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { formatAddress } from "@/utils/binaryUtils";
+import { HighlightRange } from "@/utils/colorUtils";
 
 interface TagListProps {
   highlights: HighlightRange[];
@@ -16,8 +16,8 @@ export function TagList({
   hoveredTag,
   onTagHover,
 }: TagListProps) {
-  const tagHighlights = highlights.filter(h => h.type === 'tag');
-  const searchHighlights = highlights.filter(h => h.type === 'search');
+  const tagHighlights = highlights.filter((h) => h.type === "tag");
+  const searchHighlights = highlights.filter((h) => h.type === "search");
 
   return (
     <div className="flex flex-col h-full">
@@ -37,9 +37,7 @@ export function TagList({
               <Card
                 key={`tag-${i}`}
                 className={`p-3 cursor-pointer transition-all hover:scale-[1.02] ${
-                  hoveredTag === highlight.name
-                    ? 'ring-2 ring-primary'
-                    : ''
+                  hoveredTag === highlight.name ? "ring-2 ring-primary" : ""
                 }`}
                 style={{
                   borderLeft: `4px solid ${highlight.color}`,
@@ -89,17 +87,38 @@ export function TagList({
               {searchHighlights.map((highlight, i) => (
                 <Card
                   key={`search-${i}`}
-                  className="p-2 cursor-pointer transition-all hover:scale-[1.02]"
+                  className="p-2 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md"
                   style={{
                     borderLeft: `3px solid ${highlight.color}`,
                   }}
                   onClick={() => onTagClick(highlight.start)}
+                  onMouseEnter={() => onTagHover(highlight.name)}
+                  onMouseLeave={() => onTagHover(null)}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs truncate flex-1">{highlight.name}</p>
-                    <span className="text-xs font-mono text-hex-address flex-shrink-0">
-                      {formatAddress(highlight.start)}
-                    </span>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium truncate">
+                        {highlight.name}
+                      </p>
+                      <div
+                        className="h-3 w-3 rounded border border-border flex-shrink-0"
+                        style={{ backgroundColor: highlight.color }}
+                      />
+                    </div>
+                    <div className="text-[11px] text-muted-foreground space-y-0.5">
+                      <div className="flex justify-between">
+                        <span>Offset:</span>
+                        <span className="font-mono text-hex-address">
+                          {formatAddress(highlight.start)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Size:</span>
+                        <span className="font-mono">
+                          {highlight.end - highlight.start} bytes
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </Card>
               ))}

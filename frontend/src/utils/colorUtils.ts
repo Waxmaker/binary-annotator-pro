@@ -27,10 +27,19 @@ export function getHighlightsForByte(
 
 export function createHighlightStyle(highlights: HighlightRange[]): React.CSSProperties {
   if (highlights.length === 0) return {};
-  
-  // Use the first highlight color with transparency
-  const primaryColor = highlights[0].color;
-  
+
+  // Sort highlights by size (smaller ranges first = higher priority)
+  // This ensures that specific tags (e.g., 2 bytes at 0x001)
+  // are visible over larger tags (e.g., 256 bytes at 0x000)
+  const sortedHighlights = [...highlights].sort((a, b) => {
+    const sizeA = a.end - a.start;
+    const sizeB = b.end - b.start;
+    return sizeA - sizeB; // Smaller size = higher priority
+  });
+
+  // Use the smallest (most specific) highlight color
+  const primaryColor = sortedHighlights[0].color;
+
   return {
     backgroundColor: hexToRgba(primaryColor, 0.3),
     outline: `1px solid ${hexToRgba(primaryColor, 0.6)}`,

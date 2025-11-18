@@ -45,9 +45,20 @@ func InitDB(path string) (*DB, error) {
 		&models.Note{},
 		&models.ExtractedBlock{},
 		&models.AISettings{},
+		&models.ChatSession{},
+		&models.ChatMessage{},
 	); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}
 
 	return &DB{GormDB: gdb, SQLDB: sqldb}, nil
+}
+
+// ReadBinaryFile reads a binary file from the database
+func (db *DB) ReadBinaryFile(fileName string) ([]byte, error) {
+	var file models.File
+	if err := db.GormDB.Where("name = ?", fileName).First(&file).Error; err != nil {
+		return nil, fmt.Errorf("file not found: %w", err)
+	}
+	return file.Data, nil
 }

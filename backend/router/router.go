@@ -48,4 +48,14 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	// AI WebSocket
 	wsHandler := handlers.NewWebSocketHandler(db)
 	e.GET("/ws/ai", wsHandler.HandleAI)
+
+	// Chat
+	chatHandler := handlers.NewChatHandler(db)
+	e.GET("/ws/chat", chatHandler.HandleChat)
+	e.GET("/chat/sessions/:userId", chatHandler.GetChatSessions)
+	e.DELETE("/chat/session/:sessionId", chatHandler.DeleteChatSession)
+
+	// Binary Search
+	searchHandler := handlers.NewSearchHandler(db)
+	e.POST("/search", searchHandler.Search)
 }

@@ -32,6 +32,8 @@ import { toast } from "sonner";
 interface PatternSearchProps {
   buffer: ArrayBuffer | null;
   onJumpToOffset: (offset: number, length?: number) => void;
+  onSearchResults?: (results: Array<{ offset: number; length?: number; type: string }>) => void;
+  onClearHighlights?: () => void;
 }
 
 interface SearchResult {
@@ -41,7 +43,7 @@ interface SearchResult {
   length?: number;
 }
 
-export function PatternSearch({ buffer, onJumpToOffset }: PatternSearchProps) {
+export function PatternSearch({ buffer, onJumpToOffset, onSearchResults, onClearHighlights }: PatternSearchProps) {
   const [hexPattern, setHexPattern] = useState("FF FF 11");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -59,7 +61,13 @@ export function PatternSearch({ buffer, onJumpToOffset }: PatternSearchProps) {
     setSearching(true);
     try {
       const matches = findHexPattern(buffer, hexPattern);
-      setResults(matches.map((m) => ({ offset: m.offset, type: "hex pattern" })));
+      const searchResults = matches.map((m) => ({
+        offset: m.offset,
+        type: "hex pattern",
+        length: m.length || hexPattern.split(" ").filter(s => s).length
+      }));
+      setResults(searchResults);
+      onSearchResults?.(searchResults);
       toast.success(`Found ${matches.length} matches`);
     } catch (e) {
       toast.error("Invalid hex pattern");
@@ -83,14 +91,14 @@ export function PatternSearch({ buffer, onJumpToOffset }: PatternSearchProps) {
     try {
       const matches = searchByType(buffer, typeSearchValue, dataType);
       const typeSize = getDataTypeSize(dataType);
-      setResults(
-        matches.map((m: TypeSearchResult) => ({
-          offset: m.offset,
-          type: getDataTypeName(m.type),
-          value: m.value,
-          length: typeSize || (typeof m.value === 'string' ? m.value.length : 1),
-        }))
-      );
+      const searchResults = matches.map((m: TypeSearchResult) => ({
+        offset: m.offset,
+        type: getDataTypeName(m.type),
+        value: m.value,
+        length: typeSize || (typeof m.value === 'string' ? m.value.length : 1),
+      }));
+      setResults(searchResults);
+      onSearchResults?.(searchResults);
       toast.success(`Found ${matches.length} matches`);
     } catch (e: any) {
       toast.error(`Search failed: ${e.message || "Invalid input"}`);
@@ -109,9 +117,11 @@ export function PatternSearch({ buffer, onJumpToOffset }: PatternSearchProps) {
     try {
       const patterns = findRepeatingPattern(buffer, 2, 8, 3);
       const allOffsets = patterns.flatMap((p) =>
-        p.offsets.map((offset) => ({ offset, type: "repeating" }))
+        p.offsets.map((offset) => ({ offset, type: "repeating", length: p.length }))
       );
-      setResults(allOffsets.slice(0, 100));
+      const searchResults = allOffsets.slice(0, 100);
+      setResults(searchResults);
+      onSearchResults?.(searchResults);
       toast.success(`Found ${patterns.length} repeating patterns`);
     } catch (e) {
       toast.error("Search failed");
@@ -129,7 +139,9 @@ export function PatternSearch({ buffer, onJumpToOffset }: PatternSearchProps) {
     setSearching(true);
     try {
       const blocks = findLeadBlocks(buffer, 12, 1000);
-      setResults(blocks.map((b) => ({ offset: b.offset, type: "ECG lead" })));
+      const searchResults = blocks.map((b) => ({ offset: b.offset, type: "ECG lead", length: 1000 }));
+      setResults(searchResults);
+      onSearchResults?.(searchResults);
       toast.success(`Found ${blocks.length} potential lead blocks`);
     } catch (e) {
       toast.error("Search failed");
@@ -299,7 +311,10 @@ export function PatternSearch({ buffer, onJumpToOffset }: PatternSearchProps) {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setResults([])}
+                onClick={() => {
+                  setResults([]);
+                  onClearHighlights?.();
+                }}
                 className="h-7 text-xs"
               >
                 Clear

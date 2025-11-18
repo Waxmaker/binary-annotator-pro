@@ -29,6 +29,7 @@ import {
   GitCompare,
   Info,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 import { useEffect } from "react";
 import { fetchBinaryList, fetchBinaryFile } from "@/lib/api";
@@ -40,6 +41,14 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { PatternSearch } from "@/components/PatternSearch";
 import { PatternClustering } from "@/components/PatternClustering";
 import { SettingsDialog } from "@/components/SettingsDialog";
+import { HighlightRange } from "@/utils/colorUtils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface FileData {
   name: string;
@@ -59,6 +68,7 @@ const Index = () => {
     string | undefined
   >(undefined);
   const [refreshConfigList, setRefreshConfigList] = useState(0);
+  const [searchHighlights, setSearchHighlights] = useState<HighlightRange[]>([]);
 
   const currentBuffer = currentFile
     ? files.find((f) => f.name === currentFile)?.buffer || null
@@ -73,8 +83,11 @@ const Index = () => {
     selectRange,
   } = useHexSelection(currentBuffer);
 
-  const { yamlText, config, error, highlights, updateYaml } =
-    useYamlConfig(currentBuffer);
+  const { yamlText, config, highlights: yamlHighlights, updateYaml } =
+    useYamlConfig(currentBuffer, currentFile);
+
+  // Combine YAML highlights with search highlights
+  const highlights = [...yamlHighlights, ...searchHighlights];
 
   const {
     bookmarks,
@@ -150,10 +163,8 @@ const Index = () => {
   const handleTagClick = useCallback(
     (offset: number) => {
       setScrollToOffset(offset);
-      // Auto-select the tag range
-      const highlight = highlights.find(
-        (h) => h.start === offset && h.type === "tag",
-      );
+      // Auto-select the highlight range (works for both tags and search matches)
+      const highlight = highlights.find((h) => h.start === offset);
       if (highlight) {
         selectRange(highlight.start, highlight.end - 1);
       }
@@ -169,6 +180,26 @@ const Index = () => {
     },
     [selectRange],
   );
+
+  const handleSearchResults = useCallback(
+    (results: Array<{ offset: number; length?: number; type: string }>) => {
+      // Convert search results to highlights
+      const newHighlights = results.map((result, index) => ({
+        start: result.offset,
+        end: result.offset + (result.length || 1),
+        color: "#fbbf24",
+        type: "search",
+        name: `${result.type} #${index + 1}`,
+        label: `Match: ${result.type}`,
+      }));
+      setSearchHighlights(newHighlights);
+    },
+    [],
+  );
+
+  const handleClearSearchHighlights = useCallback(() => {
+    setSearchHighlights([]);
+  }, []);
 
   const handleLoadConfig = useCallback(
     (name: string, yaml: string) => {
@@ -228,6 +259,15 @@ const Index = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/chat")}
+            className="gap-2"
+          >
+            <MessageSquare className="h-4 w-4" />
+            AI Chat
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -344,7 +384,6 @@ const Index = () => {
                     <YamlEditor
                       value={yamlText}
                       onChange={updateYaml}
-                      error={error}
                       currentConfigName={currentConfigName}
                       onConfigSaved={handleConfigSaved}
                       buffer={currentBuffer}
@@ -366,6 +405,8 @@ const Index = () => {
                     <PatternSearch
                       buffer={currentBuffer}
                       onJumpToOffset={handleJumpToOffset}
+                      onSearchResults={handleSearchResults}
+                      onClearHighlights={handleClearSearchHighlights}
                     />
                   </ResizablePanel>
                   <ResizableHandle />
@@ -430,10 +471,37 @@ const Index = () => {
             <div className="h-full flex flex-col">
               <div className="p-4 border-b border-panel-border bg-panel-header">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-sm font-semibold text-foreground">
-                      {currentFile || "Hex Viewer"}
-                    </h2>
+                  <div className="flex items-center gap-3">
+                    {files.length > 0 ? (
+                      <Select
+                        value={currentFile || ""}
+                        onValueChange={setCurrentFile}
+                      >
+                        <SelectTrigger className="w-[250px] h-8 text-sm">
+                          <SelectValue placeholder="Select a file..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {files.map((file) => (
+                            <SelectItem
+                              key={file.name}
+                              value={file.name}
+                              className="text-sm"
+                            >
+                              <div className="flex items-center justify-between gap-4">
+                                <span className="font-mono">{file.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {(file.size / 1024).toFixed(1)} KB
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <h2 className="text-sm font-semibold text-foreground">
+                        Hex Viewer
+                      </h2>
+                    )}
                     {currentBuffer && (
                       <span className="text-xs text-muted-foreground">
                         {(currentBuffer.byteLength / 1024).toFixed(1)} KB
