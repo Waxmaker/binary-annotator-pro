@@ -40,7 +40,6 @@ import { BookmarkPanel } from "@/components/BookmarkPanel";
 import { CopyAsMenu } from "@/components/CopyAsMenu";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { PatternSearch } from "@/components/PatternSearch";
-import { PatternClustering } from "@/components/PatternClustering";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { HighlightRange } from "@/utils/colorUtils";
 import {
@@ -94,7 +93,9 @@ const Index = () => {
 
     // For large files, skip buffer loading - use chunks instead
     if (file.size > CHUNK_THRESHOLD) {
-      console.log(`File ${file.name} is ${(file.size / (1024 * 1024)).toFixed(1)} MB - using chunk-based loading`);
+      console.log(
+        `File ${file.name} is ${(file.size / (1024 * 1024)).toFixed(1)} MB - using chunk-based loading`,
+      );
       setCurrentBuffer(null);
       setIsLoadingBuffer(false);
       return;
@@ -118,7 +119,10 @@ const Index = () => {
         file.buffer = buffer;
         setCurrentBuffer(buffer);
 
-        toast.success(`Loaded ${file.name} (${(buffer.byteLength / (1024 * 1024)).toFixed(1)} MB)`, { id: loadingToast });
+        toast.success(
+          `Loaded ${file.name} (${(buffer.byteLength / (1024 * 1024)).toFixed(1)} MB)`,
+          { id: loadingToast },
+        );
       } catch (err) {
         console.error("Failed to load file:", err);
         toast.error(`Failed to load ${file.name}`, { id: loadingToast });
@@ -143,7 +147,6 @@ const Index = () => {
 
   const {
     yamlText,
-    config,
     highlights: yamlHighlights,
     updateYaml,
   } = useYamlConfig(currentBuffer, currentFile);
@@ -200,7 +203,9 @@ const Index = () => {
         toast.success(`Deleted "${fileName}"`, { id: loadingToast });
       } catch (err: any) {
         console.error(err);
-        toast.error(`Error deleting file: ${err.message}`, { id: loadingToast });
+        toast.error(`Error deleting file: ${err.message}`, {
+          id: loadingToast,
+        });
       } finally {
         setIsDeletingFile(false);
       }
@@ -212,7 +217,7 @@ const Index = () => {
     (oldName: string, newName: string) => {
       // Update files array
       setFiles((prev) =>
-        prev.map((f) => (f.name === oldName ? { ...f, name: newName } : f))
+        prev.map((f) => (f.name === oldName ? { ...f, name: newName } : f)),
       );
 
       // Update current file if needed
@@ -220,7 +225,7 @@ const Index = () => {
         setCurrentFile(newName);
       }
     },
-    [currentFile]
+    [currentFile],
   );
 
   const handleByteClick = useCallback(
@@ -306,7 +311,9 @@ const Index = () => {
         const list = await fetchBinaryList();
 
         if (list.length === 0) {
-          toast.info("No files found. Upload a binary file to get started.", { id: loadingToast });
+          toast.info("No files found. Upload a binary file to get started.", {
+            id: loadingToast,
+          });
           setIsLoadingFiles(false);
           return;
         }
@@ -325,7 +332,10 @@ const Index = () => {
           setCurrentFile(loaded[0].name);
         }
 
-        toast.success(`Loaded ${loaded.length} file(s) (${(loaded.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024)).toFixed(1)} MB total)`, { id: loadingToast });
+        toast.success(
+          `Loaded ${loaded.length} file(s) (${(loaded.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024)).toFixed(1)} MB total)`,
+          { id: loadingToast },
+        );
       } catch (err) {
         console.error("Failed loading binary list:", err);
         toast.error("Failed to load files from server", { id: loadingToast });
@@ -526,7 +536,10 @@ const Index = () => {
                     : "hidden"
                 }
               >
-                <AdvancedVisualizations buffer={currentBuffer} highlights={highlights} />
+                <AdvancedVisualizations
+                  buffer={currentBuffer}
+                  highlights={highlights}
+                />
               </TabsContent>
               <TabsContent
                 value="compare"
@@ -573,7 +586,7 @@ const Index = () => {
           <ResizableHandle />
 
           {/* Center Panel - Hex Viewer */}
-          <ResizablePanel defaultSize={48} minSize={30}>
+          <ResizablePanel defaultSize={48} minSize={40}>
             <div className="h-full flex flex-col">
               <div className="p-4 border-b border-panel-border bg-panel-header">
                 <div className="flex items-center justify-between">
@@ -631,7 +644,11 @@ const Index = () => {
                 <HexViewer
                   buffer={currentBuffer}
                   fileName={currentFile || undefined}
-                  fileSize={currentFile ? files.find(f => f.name === currentFile)?.size : undefined}
+                  fileSize={
+                    currentFile
+                      ? files.find((f) => f.name === currentFile)?.size
+                      : undefined
+                  }
                   highlights={highlights}
                   selection={selection}
                   onByteClick={handleByteClick}

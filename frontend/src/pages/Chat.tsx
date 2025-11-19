@@ -5,7 +5,6 @@ import { getUserID } from "@/hooks/useUserID";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
@@ -28,7 +27,6 @@ import {
   ArrowLeft,
   Sun,
   Moon,
-  GripVertical,
   Settings,
   Sparkles,
 } from "lucide-react";
@@ -112,11 +110,6 @@ const Chat = () => {
     scrollToBottom();
   }, [messages, streamingMessage]);
 
-  // Handle sidebar resizing
-  const startResizing = () => {
-    setIsResizing(true);
-  };
-
   const stopResizing = () => {
     setIsResizing(false);
   };
@@ -132,12 +125,12 @@ const Chat = () => {
 
   useEffect(() => {
     if (isResizing) {
-      window.addEventListener('mousemove', resize);
-      window.addEventListener('mouseup', stopResizing);
+      window.addEventListener("mousemove", resize);
+      window.addEventListener("mouseup", stopResizing);
     }
     return () => {
-      window.removeEventListener('mousemove', resize);
-      window.removeEventListener('mouseup', stopResizing);
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
     };
   }, [isResizing]);
 
@@ -369,7 +362,7 @@ const Chat = () => {
     if (value.startsWith("/") && value.length > 0) {
       const search = value.toLowerCase();
       const filtered = availableCommands.filter((cmd) =>
-        cmd.command.toLowerCase().startsWith(search)
+        cmd.command.toLowerCase().startsWith(search),
       );
       setShowCommandSuggestions(filtered.length > 0);
       setSelectedCommandIndex(0);
@@ -387,13 +380,13 @@ const Chat = () => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (showCommandSuggestions) {
       const filteredCommands = availableCommands.filter((cmd) =>
-        cmd.command.toLowerCase().startsWith(input.toLowerCase())
+        cmd.command.toLowerCase().startsWith(input.toLowerCase()),
       );
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedCommandIndex((prev) =>
-          prev < filteredCommands.length - 1 ? prev + 1 : prev
+          prev < filteredCommands.length - 1 ? prev + 1 : prev,
         );
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
@@ -415,7 +408,7 @@ const Chat = () => {
   // Helper to render message content with tool call styling
   const renderMessageContent = (content: string) => {
     const toolCallRegex = /🔧 Calling tool: ([^\n.]+)\.{3}/g;
-    const parts: { type: 'text' | 'tool'; content: string }[] = [];
+    const parts: { type: "text" | "tool"; content: string }[] = [];
     let lastIndex = 0;
     let match;
 
@@ -423,14 +416,14 @@ const Chat = () => {
       // Add text before tool call
       if (match.index > lastIndex) {
         parts.push({
-          type: 'text',
-          content: content.substring(lastIndex, match.index)
+          type: "text",
+          content: content.substring(lastIndex, match.index),
         });
       }
       // Add tool call
       parts.push({
-        type: 'tool',
-        content: match[0]
+        type: "tool",
+        content: match[0],
       });
       lastIndex = match.index + match[0].length;
     }
@@ -438,13 +431,13 @@ const Chat = () => {
     // Add remaining text
     if (lastIndex < content.length) {
       parts.push({
-        type: 'text',
-        content: content.substring(lastIndex)
+        type: "text",
+        content: content.substring(lastIndex),
       });
     }
 
     return parts.map((part, idx) => {
-      if (part.type === 'tool') {
+      if (part.type === "tool") {
         return (
           <div
             key={idx}
@@ -523,7 +516,8 @@ const Chat = () => {
             <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-md">
               <div className="h-2 w-2 rounded-full bg-primary" />
               <span className="text-xs font-medium text-foreground">
-                MCP: {mcpStatus.connected_servers} server(s), {mcpStatus.total_tools} tool(s)
+                MCP: {mcpStatus.connected_servers} server(s),{" "}
+                {mcpStatus.total_tools} tool(s)
               </span>
             </div>
           )}
@@ -549,7 +543,6 @@ const Chat = () => {
           <div
             ref={sidebarRef}
             className="border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex flex-col relative"
-            style={{ width: `${sidebarWidth}px` }}
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-800">
               <Button
@@ -572,14 +565,14 @@ const Chat = () => {
                   </div>
                 )}
                 {sessions.map((session) => (
-                  <div key={session.id} className="group relative">
+                  <div key={session.id} className="group relative w-full p-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div
                           onClick={() => loadSession(session.id)}
                           className={`
                             flex items-center gap-3 p-3 pr-2 rounded-lg cursor-pointer
-                            transition-all duration-200 border border-transparent
+                            transition-all duration-200 border border-transparent w-full
                             ${
                               currentSessionId === session.id
                                 ? "bg-primary/10 dark:bg-primary/20 border-primary/20 dark:border-primary/30 shadow-sm"
@@ -587,27 +580,31 @@ const Chat = () => {
                             }
                           `}
                         >
-                          <div className={`
+                          <div
+                            className={`
                             flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center
                             ${
                               currentSessionId === session.id
                                 ? "bg-primary/20 dark:bg-primary/30 text-primary"
                                 : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 group-hover:bg-gray-300 dark:group-hover:bg-gray-600"
                             }
-                          `}>
+                          `}
+                          >
                             <MessageSquare className="h-4 w-4" />
                           </div>
-                          <span className={`
-                            text-sm truncate font-medium flex-1
+                          <span
+                            className={`
+                            text-sm truncate font-medium flex-1 max-w-36
                             ${currentSessionId === session.id ? "text-foreground" : "text-muted-foreground"}
-                          `}>
+                          `}
+                          >
                             {session.title}
                           </span>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={(e) => deleteSession(session.id, e)}
-                            className="h-7 w-7 p-0 flex-shrink-0 opacity-40 group-hover:opacity-100 transition-all hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 hover:scale-110"
+                            className="h-7 w-7 p-0 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 hover:scale-110"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -657,16 +654,6 @@ const Chat = () => {
                 </TooltipContent>
               </Tooltip>
             </div>
-
-            {/* Resize handle */}
-            <div
-              onMouseDown={startResizing}
-              className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/50 transition-colors group"
-            >
-              <div className="absolute top-1/2 -translate-y-1/2 right-0 w-4 h-12 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <GripVertical className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </div>
           </div>
         </TooltipProvider>
 
@@ -693,7 +680,9 @@ const Chat = () => {
                         `}
                       >
                         <div className="text-[15px] leading-relaxed whitespace-pre-wrap">
-                          {msg.role === "assistant" ? renderMessageContent(msg.content) : msg.content}
+                          {msg.role === "assistant"
+                            ? renderMessageContent(msg.content)
+                            : msg.content}
                         </div>
                       </div>
                     </div>
@@ -746,7 +735,9 @@ const Chat = () => {
                       <div className="absolute bottom-full left-0 mb-2 w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-10">
                         {availableCommands
                           .filter((cmd) =>
-                            cmd.command.toLowerCase().startsWith(input.toLowerCase())
+                            cmd.command
+                              .toLowerCase()
+                              .startsWith(input.toLowerCase()),
                           )
                           .map((cmd, index) => (
                             <div
