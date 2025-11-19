@@ -30,6 +30,7 @@ import {
   Info,
   Settings,
   MessageSquare,
+  BookOpen,
 } from "lucide-react";
 import { useEffect } from "react";
 import { fetchBinaryList, fetchBinaryFile } from "@/lib/api";
@@ -68,7 +69,11 @@ const Index = () => {
     string | undefined
   >(undefined);
   const [refreshConfigList, setRefreshConfigList] = useState(0);
-  const [searchHighlights, setSearchHighlights] = useState<HighlightRange[]>([]);
+  const [searchHighlights, setSearchHighlights] = useState<HighlightRange[]>(
+    [],
+  );
+  const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+  const [isDeletingFile, setIsDeletingFile] = useState(false);
 
   const currentBuffer = currentFile
     ? files.find((f) => f.name === currentFile)?.buffer || null
@@ -80,11 +85,16 @@ const Index = () => {
     startSelection,
     updateSelection,
     endSelection,
+    clearSelection,
     selectRange,
   } = useHexSelection(currentBuffer);
 
-  const { yamlText, config, highlights: yamlHighlights, updateYaml } =
-    useYamlConfig(currentBuffer, currentFile);
+  const {
+    yamlText,
+    config,
+    highlights: yamlHighlights,
+    updateYaml,
+  } = useYamlConfig(currentBuffer, currentFile);
 
   // Combine YAML highlights with search highlights
   const highlights = [...yamlHighlights, ...searchHighlights];
@@ -109,6 +119,11 @@ const Index = () => {
 
   const handleFileRemove = useCallback(
     async (fileName: string) => {
+      if (!confirm(`Delete "${fileName}"?`)) return;
+
+      setIsDeletingFile(true);
+      const loadingToast = toast.loading(`Deleting ${fileName}...`);
+
       try {
         const API_BASE_URL =
           import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -130,13 +145,30 @@ const Index = () => {
           setCurrentFile(null);
         }
 
-        toast.success(`Deleted "${fileName}"`);
+        toast.success(`Deleted "${fileName}"`, { id: loadingToast });
       } catch (err: any) {
         console.error(err);
-        toast.error(`Error deleting file: ${err.message}`);
+        toast.error(`Error deleting file: ${err.message}`, { id: loadingToast });
+      } finally {
+        setIsDeletingFile(false);
       }
     },
     [currentFile, setFiles, setCurrentFile],
+  );
+
+  const handleFileRename = useCallback(
+    (oldName: string, newName: string) => {
+      // Update files array
+      setFiles((prev) =>
+        prev.map((f) => (f.name === oldName ? { ...f, name: newName } : f))
+      );
+
+      // Update current file if needed
+      if (currentFile === oldName) {
+        setCurrentFile(newName);
+      }
+    },
+    [currentFile]
   );
 
   const handleByteClick = useCallback(
@@ -215,12 +247,24 @@ const Index = () => {
 
   useEffect(() => {
     const loadFilesFromBackend = async () => {
+      setIsLoadingFiles(true);
+      const loadingToast = toast.loading("Loading binary files...");
+
       try {
         const list = await fetchBinaryList();
 
+        if (list.length === 0) {
+          toast.info("No files found. Upload a binary file to get started.", { id: loadingToast });
+          setIsLoadingFiles(false);
+          return;
+        }
+
         const loaded: FileData[] = [];
 
-        for (const item of list) {
+        for (let i = 0; i < list.length; i++) {
+          const item = list[i];
+          toast.loading(`Loading files... (${i + 1}/${list.length})`, { id: loadingToast });
+
           const buffer = await fetchBinaryFile(item.name);
 
           loaded.push({
@@ -235,8 +279,13 @@ const Index = () => {
         if (loaded.length > 0) {
           setCurrentFile(loaded[0].name);
         }
+
+        toast.success(`Loaded ${loaded.length} file(s)`, { id: loadingToast });
       } catch (err) {
         console.error("Failed loading binary list:", err);
+        toast.error("Failed to load files from server", { id: loadingToast });
+      } finally {
+        setIsLoadingFiles(false);
       }
     };
 
@@ -285,6 +334,15 @@ const Index = () => {
           >
             <LineChart className="h-4 w-4" />
             Sample Viewer
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/documentation")}
+            className="gap-2"
+          >
+            <BookOpen className="h-4 w-4" />
+            Docs
           </Button>
         </div>
       </header>
@@ -361,6 +419,9 @@ const Index = () => {
                   onFileSelect={setCurrentFile}
                   onFileAdd={handleFileAdd}
                   onFileRemove={handleFileRemove}
+                  onFileRename={handleFileRename}
+                  isLoading={isLoadingFiles}
+                  isDeleting={isDeletingFile}
                 />
               </TabsContent>
               <TabsContent
@@ -519,6 +580,7 @@ const Index = () => {
                   onByteClick={handleByteClick}
                   onByteMouseEnter={handleByteMouseEnter}
                   scrollToOffset={scrollToOffset}
+                  onClearSelection={clearSelection}
                 />
               </div>
             </div>

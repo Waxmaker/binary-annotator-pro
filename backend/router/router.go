@@ -33,6 +33,7 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 
 	// Update
 	e.PUT("/update/yaml/:name", h.UpdateYamlConfig)
+	e.PUT("/rename/binary/:name", h.RenameBinaryFile)
 
 	// Additional helpers
 	e.GET("/get/binary-by-id/:id", h.GetBinaryByID)
@@ -58,4 +59,8 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	// Binary Search
 	searchHandler := handlers.NewSearchHandler(db)
 	e.POST("/search", searchHandler.Search)
+
+	// MCP
+	mcpHandler := handlers.NewMCPHandler()
+	e.GET("/mcp/status", mcpHandler.GetMCPStatus)
 }

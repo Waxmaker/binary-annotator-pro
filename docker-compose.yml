@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Backend service (Go)
@@ -6,22 +6,34 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ecg-backend
+    container_name: binary-annotator-backend
     ports:
       - "3000:3000"
     volumes:
       # Persist database
-      - ./backend/data:/app/data
-      # Mount database file
-      - ./backend/ecg_data.db:/app/ecg_data.db
+      - ./backend/data/:/app/data
+      # Mount MCP config as read-only
+      - ${MCP_CONFIG_PATH:-~/code/binary-annotator-pro/.mcp.json}:/root/.mcp.json:ro
     environment:
       - PORT=3000
-      - DB_PATH=/app/ecg_data.db
+      - DATABASE_PATH=/app/data/ecg_data.db
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - BINARY_ANNOTATOR_API_URL=http://backend:3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     networks:
-      - ecg-network
+      - binary-annotator-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,21 +44,17 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: ecg-frontend
+    container_name: binary-annotator-frontend
     ports:
       - "8080:80"
     depends_on:
       - backend
     restart: unless-stopped
     networks:
-      - ecg-network
+      - binary-annotator-network
     environment:
       - VITE_API_URL=http://localhost:3000
 
 networks:
-  ecg-network:
+  binary-annotator-network:
     driver: bridge
-
-volumes:
-  backend-data:
-    driver: local

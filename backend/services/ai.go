@@ -22,10 +22,10 @@ const (
 
 // AIRequest represents an AI generation request
 type AIRequest struct {
-	Provider      AIProvider `json:"provider"`
-	Prompt        string     `json:"prompt"`
-	Stream        bool       `json:"stream,omitempty"`
-	FileAnalysis  *FileAnalysis `json:"file_analysis,omitempty"`
+	Provider     AIProvider    `json:"provider"`
+	Prompt       string        `json:"prompt"`
+	Stream       bool          `json:"stream,omitempty"`
+	FileAnalysis *FileAnalysis `json:"file_analysis,omitempty"`
 }
 
 // FileAnalysis contains binary file analysis data
@@ -80,8 +80,10 @@ func NewAIService() *AIService {
 
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
+		fmt.Printf("%s=%s\n", key, value)
 		return value
 	}
+	fmt.Printf("%s=%s\n", key, defaultValue)
 	return defaultValue
 }
 

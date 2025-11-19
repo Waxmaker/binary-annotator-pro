@@ -52,6 +52,99 @@ func NewChatService(ollamaURL string) *ChatService {
 	}
 }
 
+// ToolCall represents a tool call from the model
+type ToolCall struct {
+	Function struct {
+		Name      string                 `json:"name"`
+		Arguments map[string]interface{} `json:"arguments"`
+	} `json:"function"`
+}
+
+// StreamResponse contains the streaming response with potential tool calls
+type StreamResponse struct {
+	Content   string
+	ToolCalls []ToolCall
+	Done      bool
+}
+
+// StreamCallbackWithTools is called for each chunk of streaming response
+type StreamCallbackWithTools func(resp StreamResponse) error
+
+// StreamChatWithTools sends a chat request and streams the response, handling tool calls
+func (s *ChatService) StreamChatWithTools(req ChatRequest, callback StreamCallbackWithTools) error {
+	req.Stream = true
+
+	jsonData, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("POST", s.OllamaURL+"/api/chat", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("ollama error: %s - %s", resp.Status, string(body))
+	}
+
+	// Read streaming response line by line
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		var streamResp struct {
+			Model     string `json:"model"`
+			CreatedAt string `json:"created_at"`
+			Message   struct {
+				Role      string     `json:"role"`
+				Content   string     `json:"content"`
+				ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+			} `json:"message"`
+			Done bool `json:"done"`
+		}
+
+		if err := json.Unmarshal([]byte(line), &streamResp); err != nil {
+			continue // Skip malformed lines
+		}
+
+		// Build response
+		response := StreamResponse{
+			Content:   streamResp.Message.Content,
+			ToolCalls: streamResp.Message.ToolCalls,
+			Done:      streamResp.Done,
+		}
+
+		// Send to callback
+		if err := callback(response); err != nil {
+			return err
+		}
+
+		if streamResp.Done {
+			break
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("read stream: %w", err)
+	}
+
+	return nil
+}
+
 // StreamChat sends a chat request and streams the response
 func (s *ChatService) StreamChat(req ChatRequest, callback StreamCallback) error {
 	req.Stream = true

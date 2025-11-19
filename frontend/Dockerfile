@@ -8,13 +8,15 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN yarn install
+# RUN yarn add uuid && yarn add -D @types/uuid
+
 
 # Copy source code
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN yarn run build
 
 # Production stage - nginx
 FROM nginx:alpine

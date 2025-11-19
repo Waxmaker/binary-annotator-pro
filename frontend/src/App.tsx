@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import EcgViewer from "./pages/EcgViewer";
 import Chat from "./pages/Chat";
 import Login from "./pages/Login";
+import Documentation from "./pages/Documentation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/ecg-viewer" element={<EcgViewer />} />
             <Route path="/chat" element={<Chat />} />
+            <Route path="/documentation" element={<Documentation />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

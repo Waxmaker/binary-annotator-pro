@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from "react";
 export interface Bookmark {
   id: string;
   offset: number;
+  endOffset?: number; // Optional: for range selection (start = offset, end = endOffset)
   name: string;
   color: string;
   note?: string;
@@ -49,7 +50,7 @@ export const useBookmarks = (fileName: string | null) => {
   );
 
   const addBookmark = useCallback(
-    (offset: number, name?: string, note?: string) => {
+    (offset: number, name?: string, note?: string, endOffset?: number) => {
       const colors = [
         "#ef4444", // red
         "#f59e0b", // amber
@@ -59,10 +60,20 @@ export const useBookmarks = (fileName: string | null) => {
         "#ec4899", // pink
       ];
 
+      // Generate default name based on whether it's a range or single offset
+      let defaultName: string;
+      if (endOffset !== undefined && endOffset > offset) {
+        const size = endOffset - offset + 1;
+        defaultName = `Range 0x${offset.toString(16).toUpperCase()}-0x${endOffset.toString(16).toUpperCase()} (${size} bytes)`;
+      } else {
+        defaultName = `Offset 0x${offset.toString(16).toUpperCase()}`;
+      }
+
       const newBookmark: Bookmark = {
         id: `bookmark-${Date.now()}-${Math.random()}`,
         offset,
-        name: name || `Offset 0x${offset.toString(16).toUpperCase()}`,
+        endOffset: endOffset !== undefined && endOffset > offset ? endOffset : undefined,
+        name: name || defaultName,
         color: colors[bookmarks.length % colors.length],
         note,
         createdAt: Date.now(),

@@ -24,7 +24,7 @@ import { toast } from "sonner";
 interface BookmarkPanelProps {
   bookmarks: Bookmark[];
   selection: { start: number; end: number; bytes: number[] } | null;
-  onAddBookmark: (offset: number, name?: string, note?: string) => void;
+  onAddBookmark: (offset: number, name?: string, note?: string, endOffset?: number) => void;
   onRemoveBookmark: (id: string) => void;
   onUpdateBookmark: (
     id: string,
@@ -53,14 +53,21 @@ export const BookmarkPanel = ({
     }
 
     const offset = selection.start;
+    const endOffset = selection.end > selection.start ? selection.end : undefined;
     const name = bookmarkName.trim() || undefined;
     const note = bookmarkNote.trim() || undefined;
 
-    onAddBookmark(offset, name, note);
+    onAddBookmark(offset, name, note, endOffset);
     setBookmarkName("");
     setBookmarkNote("");
     setDialogOpen(false);
-    toast.success("Bookmark added");
+
+    if (endOffset !== undefined) {
+      const size = endOffset - offset + 1;
+      toast.success(`Range bookmark added (${size} bytes)`);
+    } else {
+      toast.success("Bookmark added");
+    }
   };
 
   const handleEditBookmark = (bookmark: Bookmark) => {
@@ -127,7 +134,9 @@ export const BookmarkPanel = ({
               <DialogDescription>
                 {editingBookmark
                   ? "Update bookmark information"
-                  : `Create a bookmark at offset 0x${selection?.start.toString(16).toUpperCase()}`}
+                  : selection && selection.end > selection.start
+                    ? `Create a range bookmark from 0x${selection.start.toString(16).toUpperCase()} to 0x${selection.end.toString(16).toUpperCase()} (${selection.end - selection.start + 1} bytes)`
+                    : `Create a bookmark at offset 0x${selection?.start.toString(16).toUpperCase()}`}
               </DialogDescription>
             </DialogHeader>
 
@@ -189,7 +198,16 @@ export const BookmarkPanel = ({
                         {bookmark.name}
                       </div>
                       <div className="text-xs text-muted-foreground font-mono">
-                        Offset: 0x{bookmark.offset.toString(16).toUpperCase()}
+                        {bookmark.endOffset !== undefined ? (
+                          <>
+                            Range: 0x{bookmark.offset.toString(16).toUpperCase()} - 0x{bookmark.endOffset.toString(16).toUpperCase()}
+                            <span className="ml-2 text-muted-foreground/70">
+                              ({bookmark.endOffset - bookmark.offset + 1} bytes)
+                            </span>
+                          </>
+                        ) : (
+                          <>Offset: 0x{bookmark.offset.toString(16).toUpperCase()}</>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-1">

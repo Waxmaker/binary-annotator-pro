@@ -55,6 +55,23 @@ export async function fetchBinaryFile(name: string) {
   return await res.arrayBuffer();
 }
 
+export async function renameBinaryFile(oldName: string, newName: string): Promise<any> {
+  const res = await fetch(`${API_BASE_URL}/rename/binary/${oldName}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ new_name: newName }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || `Rename failed: ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
 // YAML Config API functions
 
 export interface YamlConfigItem {

@@ -7,6 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -22,9 +28,14 @@ import {
   ArrowLeft,
   Sun,
   Moon,
+  GripVertical,
+  Settings,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchBinaryList } from "@/lib/api";
+import { SettingsDialog } from "@/components/SettingsDialog";
+import { useAISettings } from "@/hooks/useAISettings";
 
 interface ChatMessage {
   id?: number;
@@ -45,10 +56,23 @@ interface BinaryFile {
   size: number;
 }
 
+interface MCPStatus {
+  connected_servers: number;
+  total_tools: number;
+  servers: Array<{
+    name: string;
+    connected: boolean;
+    initialized: boolean;
+    tools_count: number;
+    version?: string;
+  }>;
+}
+
 const Chat = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const userID = getUserID();
+  const { settings: aiSettings, isConfigured } = useAISettings();
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
 
@@ -60,10 +84,24 @@ const Chat = () => {
   const [streamingMessage, setStreamingMessage] = useState("");
   const [binaryFiles, setBinaryFiles] = useState<BinaryFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [mcpStatus, setMcpStatus] = useState<MCPStatus | null>(null);
+  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [isResizing, setIsResizing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const streamingMessageRef = useRef("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Available commands
+  const availableCommands = [
+    { command: "/mcp-status", description: "Show MCP connection status" },
+    { command: "/mcp-list", description: "List all available MCP tools" },
+  ];
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -73,6 +111,35 @@ const Chat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, streamingMessage]);
+
+  // Handle sidebar resizing
+  const startResizing = () => {
+    setIsResizing(true);
+  };
+
+  const stopResizing = () => {
+    setIsResizing(false);
+  };
+
+  const resize = (e: MouseEvent) => {
+    if (isResizing && sidebarRef.current) {
+      const newWidth = e.clientX;
+      if (newWidth >= 200 && newWidth <= 500) {
+        setSidebarWidth(newWidth);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', resize);
+      window.addEventListener('mouseup', stopResizing);
+    }
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [isResizing]);
 
   // Load binary files
   useEffect(() => {
@@ -88,6 +155,26 @@ const Chat = () => {
       }
     };
     loadFiles();
+  }, []);
+
+  // Load MCP status
+  useEffect(() => {
+    const loadMCPStatus = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const response = await fetch(`${apiUrl}/mcp/status`);
+        if (response.ok) {
+          const status = await response.json();
+          setMcpStatus(status);
+        }
+      } catch (err) {
+        console.error("Failed to load MCP status:", err);
+      }
+    };
+    loadMCPStatus();
+    // Poll every 30 seconds
+    const interval = setInterval(loadMCPStatus, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // WebSocket connection
@@ -274,11 +361,104 @@ const Chat = () => {
     setStreamingMessage("");
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInput(value);
+
+    // Show command suggestions if input starts with /
+    if (value.startsWith("/") && value.length > 0) {
+      const search = value.toLowerCase();
+      const filtered = availableCommands.filter((cmd) =>
+        cmd.command.toLowerCase().startsWith(search)
+      );
+      setShowCommandSuggestions(filtered.length > 0);
+      setSelectedCommandIndex(0);
+    } else {
+      setShowCommandSuggestions(false);
+    }
+  };
+
+  const handleCommandSelect = (command: string) => {
+    setInput(command);
+    setShowCommandSuggestions(false);
+    inputRef.current?.focus();
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (showCommandSuggestions) {
+      const filteredCommands = availableCommands.filter((cmd) =>
+        cmd.command.toLowerCase().startsWith(input.toLowerCase())
+      );
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedCommandIndex((prev) =>
+          prev < filteredCommands.length - 1 ? prev + 1 : prev
+        );
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedCommandIndex((prev) => (prev > 0 ? prev - 1 : prev));
+      } else if (e.key === "Tab" || e.key === "Enter") {
+        if (filteredCommands.length > 0) {
+          e.preventDefault();
+          handleCommandSelect(filteredCommands[selectedCommandIndex].command);
+        }
+      } else if (e.key === "Escape") {
+        setShowCommandSuggestions(false);
+      }
+    } else if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
+  };
+
+  // Helper to render message content with tool call styling
+  const renderMessageContent = (content: string) => {
+    const toolCallRegex = /🔧 Calling tool: ([^\n.]+)\.{3}/g;
+    const parts: { type: 'text' | 'tool'; content: string }[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = toolCallRegex.exec(content)) !== null) {
+      // Add text before tool call
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: content.substring(lastIndex, match.index)
+        });
+      }
+      // Add tool call
+      parts.push({
+        type: 'tool',
+        content: match[0]
+      });
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < content.length) {
+      parts.push({
+        type: 'text',
+        content: content.substring(lastIndex)
+      });
+    }
+
+    return parts.map((part, idx) => {
+      if (part.type === 'tool') {
+        return (
+          <div
+            key={idx}
+            className="inline-flex items-center gap-2 px-3 py-1.5 my-2 rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 text-blue-700 dark:text-blue-400 text-sm font-medium"
+          >
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse" />
+              {part.content}
+            </div>
+          </div>
+        );
+      }
+      return <span key={idx}>{part.content}</span>;
+    });
   };
 
   return (
@@ -306,11 +486,8 @@ const Chat = () => {
         <div className="flex items-center gap-4">
           {/* Binary File Selector */}
           {binaryFiles.length > 0 && (
-            <Select
-              value={selectedFile || ""}
-              onValueChange={setSelectedFile}
-            >
-              <SelectTrigger className="w-[200px] h-8 text-sm">
+            <Select value={selectedFile || ""} onValueChange={setSelectedFile}>
+              <SelectTrigger className="w-64 flex justify-between h-8 text-sm">
                 <SelectValue placeholder="Select binary..." />
               </SelectTrigger>
               <SelectContent>
@@ -340,6 +517,17 @@ const Chat = () => {
               {connected ? "Connected" : "Disconnected"}
             </span>
           </div>
+
+          {/* MCP Status */}
+          {mcpStatus && mcpStatus.connected_servers > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-md">
+              <div className="h-2 w-2 rounded-full bg-primary" />
+              <span className="text-xs font-medium text-foreground">
+                MCP: {mcpStatus.connected_servers} server(s), {mcpStatus.total_tools} tool(s)
+              </span>
+            </div>
+          )}
+
           <Button
             variant="ghost"
             size="sm"
@@ -357,47 +545,130 @@ const Chat = () => {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar - Sessions */}
-        <div className="w-64 border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex flex-col">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-            <Button
-              onClick={createNewSession}
-              className="w-full gap-2"
-              disabled={!connected}
-            >
-              <Plus className="h-4 w-4" />
-              New Chat
-            </Button>
-          </div>
-
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
-              {sessions.map((session) => (
-                <div
-                  key={session.id}
-                  onClick={() => loadSession(session.id)}
-                  className={`
-                    flex items-center justify-between p-3 rounded-lg cursor-pointer
-                    transition-colors hover:bg-gray-200 dark:hover:bg-gray-800
-                    ${currentSessionId === session.id ? "bg-gray-200 dark:bg-gray-800" : ""}
-                  `}
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                    <span className="text-sm truncate">{session.title}</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => deleteSession(session.id, e)}
-                    className="h-6 w-6 p-0 flex-shrink-0"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
+        <TooltipProvider delayDuration={300}>
+          <div
+            ref={sidebarRef}
+            className="border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex flex-col relative"
+            style={{ width: `${sidebarWidth}px` }}
+          >
+            <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+              <Button
+                onClick={createNewSession}
+                className="w-full gap-2"
+                disabled={!connected}
+              >
+                <Plus className="h-4 w-4" />
+                New Chat
+              </Button>
             </div>
-          </ScrollArea>
-        </div>
+
+            <ScrollArea className="flex-1">
+              <div className="p-2 space-y-1">
+                {sessions.length === 0 && (
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    No conversations yet.
+                    <br />
+                    Create a new chat to get started.
+                  </div>
+                )}
+                {sessions.map((session) => (
+                  <div key={session.id} className="group relative">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          onClick={() => loadSession(session.id)}
+                          className={`
+                            flex items-center gap-3 p-3 pr-2 rounded-lg cursor-pointer
+                            transition-all duration-200 border border-transparent
+                            ${
+                              currentSessionId === session.id
+                                ? "bg-primary/10 dark:bg-primary/20 border-primary/20 dark:border-primary/30 shadow-sm"
+                                : "hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-200 dark:hover:border-gray-700"
+                            }
+                          `}
+                        >
+                          <div className={`
+                            flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center
+                            ${
+                              currentSessionId === session.id
+                                ? "bg-primary/20 dark:bg-primary/30 text-primary"
+                                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 group-hover:bg-gray-300 dark:group-hover:bg-gray-600"
+                            }
+                          `}>
+                            <MessageSquare className="h-4 w-4" />
+                          </div>
+                          <span className={`
+                            text-sm truncate font-medium flex-1
+                            ${currentSessionId === session.id ? "text-foreground" : "text-muted-foreground"}
+                          `}>
+                            {session.title}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => deleteSession(session.id, e)}
+                            className="h-7 w-7 p-0 flex-shrink-0 opacity-40 group-hover:opacity-100 transition-all hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 hover:scale-110"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <p className="text-sm">{session.title}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(session.updated_at).toLocaleString()}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+
+            {/* Settings Footer */}
+            <div className="p-3 border-t border-gray-200 dark:border-gray-800">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSettingsOpen(true)}
+                    className="w-full justify-start gap-2 relative"
+                  >
+                    {isConfigured ? (
+                      <Sparkles className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Settings className="h-4 w-4" />
+                    )}
+                    <span className="flex-1 text-left truncate">
+                      AI Settings
+                    </span>
+                    {isConfigured && (
+                      <div className="h-2 w-2 rounded-full bg-green-500" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-sm">
+                    {isConfigured
+                      ? `Using ${aiSettings.provider}`
+                      : "Configure AI provider"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* Resize handle */}
+            <div
+              onMouseDown={startResizing}
+              className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/50 transition-colors group"
+            >
+              <div className="absolute top-1/2 -translate-y-1/2 right-0 w-4 h-12 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+          </div>
+        </TooltipProvider>
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col bg-white dark:bg-gray-950">
@@ -422,7 +693,7 @@ const Chat = () => {
                         `}
                       >
                         <div className="text-[15px] leading-relaxed whitespace-pre-wrap">
-                          {msg.content}
+                          {msg.role === "assistant" ? renderMessageContent(msg.content) : msg.content}
                         </div>
                       </div>
                     </div>
@@ -455,7 +726,7 @@ const Chat = () => {
                     <div className="flex justify-start">
                       <div className="max-w-[80%] px-4 py-3 rounded-lg bg-transparent text-gray-900 dark:text-gray-100">
                         <div className="text-[15px] leading-relaxed whitespace-pre-wrap">
-                          {streamingMessage}
+                          {renderMessageContent(streamingMessage)}
                           <span className="inline-block w-1.5 h-5 bg-gray-900 dark:bg-gray-100 animate-pulse ml-0.5" />
                         </div>
                       </div>
@@ -468,23 +739,57 @@ const Chat = () => {
 
               {/* Input */}
               <div className="border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-950">
-                <div className="max-w-3xl mx-auto flex gap-2">
-                  <Textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask me anything about binary analysis..."
-                    className="flex-1 min-h-[60px] max-h-[200px] resize-none"
-                    disabled={isStreaming}
-                  />
-                  <Button
-                    onClick={sendMessage}
-                    disabled={!input.trim() || isStreaming}
-                    size="lg"
-                    className="px-6"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
+                <div className="max-w-3xl mx-auto">
+                  <div className="relative flex gap-2">
+                    {/* Command Suggestions Dropdown */}
+                    {showCommandSuggestions && (
+                      <div className="absolute bottom-full left-0 mb-2 w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-10">
+                        {availableCommands
+                          .filter((cmd) =>
+                            cmd.command.toLowerCase().startsWith(input.toLowerCase())
+                          )
+                          .map((cmd, index) => (
+                            <div
+                              key={cmd.command}
+                              onClick={() => handleCommandSelect(cmd.command)}
+                              className={`
+                                px-4 py-3 cursor-pointer transition-colors
+                                ${
+                                  index === selectedCommandIndex
+                                    ? "bg-primary/10 dark:bg-primary/20"
+                                    : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                                }
+                              `}
+                            >
+                              <div className="font-mono text-sm font-medium text-foreground">
+                                {cmd.command}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {cmd.description}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+
+                    <Textarea
+                      ref={inputRef}
+                      value={input}
+                      onChange={handleInputChange}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Ask me anything about binary analysis... (Type / for commands)"
+                      className="flex-1 min-h-[60px] max-h-[200px] resize-none"
+                      disabled={isStreaming}
+                    />
+                    <Button
+                      onClick={sendMessage}
+                      disabled={!input.trim() || isStreaming}
+                      size="lg"
+                      className="px-6"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </>
@@ -499,6 +804,9 @@ const Chat = () => {
           )}
         </div>
       </div>
+
+      {/* Settings Dialog */}
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 };
