@@ -6,6 +6,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+# Debug 
+.dap_args.json
+
+# Database
+*.db
 
 node_modules
 dist
