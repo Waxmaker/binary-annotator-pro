@@ -5,9 +5,12 @@ import { HighlightRange } from '@/utils/colorUtils';
 import { FileText, Search } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
+import { chunkManager } from '@/utils/chunkManager';
 
 interface HexViewerProps {
   buffer: ArrayBuffer | null;
+  fileName?: string; // For chunk-based loading
+  fileSize?: number; // For chunk-based loading
   highlights: HighlightRange[];
   selection: { start: number; end: number; bytes: number[] } | null;
   onByteClick: (offset: number) => void;
@@ -22,6 +25,8 @@ const VISIBLE_LINES = 50; // Number of lines to render at once
 
 export function HexViewer({
   buffer,
+  fileName,
+  fileSize: propsFileSize,
   highlights,
   selection,
   onByteClick,
@@ -33,10 +38,21 @@ export function HexViewer({
   const [scrollTop, setScrollTop] = useState(0);
   const [addressInput, setAddressInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [chunkData, setChunkData] = useState<Uint8Array | null>(null);
+  const [chunkStart, setChunkStart] = useState(0);
+  const [isLoadingChunk, setIsLoadingChunk] = useState(false);
 
-  const lines = buffer ? parseHexLines(buffer, BYTES_PER_LINE) : [];
-  const totalHeight = lines.length * LINE_HEIGHT;
-  const fileSize = buffer ? buffer.byteLength : 0;
+  // Use chunk-based loading if fileName is provided, otherwise use buffer
+  const useChunks = !buffer && fileName && propsFileSize;
+  const fileSize = useChunks ? propsFileSize! : (buffer ? buffer.byteLength : 0);
+
+  // For chunk mode, create a virtual buffer from chunk data
+  const effectiveBuffer = useChunks && chunkData
+    ? chunkData.buffer.slice(0, chunkData.byteLength)
+    : buffer;
+
+  const lines = effectiveBuffer ? parseHexLines(effectiveBuffer, BYTES_PER_LINE, useChunks ? chunkStart : 0) : [];
+  const totalHeight = Math.ceil(fileSize / BYTES_PER_LINE) * LINE_HEIGHT;
 
   // Generate address suggestions from highlights
   const addressSuggestions = highlights
@@ -51,9 +67,15 @@ export function HexViewer({
     .sort((a, b) => a.address - b.address);
 
   // Calculate visible range
-  const startIndex = Math.floor(scrollTop / LINE_HEIGHT);
-  const endIndex = Math.min(startIndex + VISIBLE_LINES, lines.length);
-  const visibleLines = lines.slice(startIndex, endIndex);
+  // For chunk mode: adjust indices to be relative to the chunk
+  const viewportStartLineIndex = Math.floor(scrollTop / LINE_HEIGHT);
+  const chunkStartLineIndex = useChunks ? Math.floor(chunkStart / BYTES_PER_LINE) : 0;
+  const relativeStartIndex = Math.max(0, viewportStartLineIndex - chunkStartLineIndex);
+  const relativeEndIndex = Math.min(relativeStartIndex + VISIBLE_LINES, lines.length);
+  const visibleLines = lines.slice(relativeStartIndex, relativeEndIndex);
+
+  // For rendering, we need the absolute line index for positioning
+  const startIndex = useChunks ? chunkStartLineIndex + relativeStartIndex : relativeStartIndex;
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop);
@@ -127,6 +149,46 @@ export function HexViewer({
     }
   }, [scrollToOffset]);
 
+  // Load chunks when scrolling (for chunk mode)
+  useEffect(() => {
+    if (!useChunks || !fileName) return;
+
+    const loadChunkForScroll = async () => {
+      // Calculate which chunk we need based on scroll position
+      const firstVisibleLine = Math.floor(scrollTop / LINE_HEIGHT);
+      const firstVisibleByte = firstVisibleLine * BYTES_PER_LINE;
+
+      // Load a chunk centered around the visible area
+      const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+      const chunkStartByte = Math.floor(firstVisibleByte / CHUNK_SIZE) * CHUNK_SIZE;
+
+      // Skip if we already have this chunk
+      if (chunkData && chunkStartByte === chunkStart) return;
+
+      setIsLoadingChunk(true);
+
+      try {
+        // Initialize file in chunk manager
+        chunkManager.initFile(fileName, fileSize);
+
+        // Load chunk
+        const chunk = await chunkManager.getBytes(fileName, chunkStartByte, CHUNK_SIZE);
+
+        setChunkData(chunk);
+        setChunkStart(chunkStartByte);
+
+        // Preload adjacent chunks
+        chunkManager.preloadAround(fileName, firstVisibleByte).catch(console.error);
+      } catch (err) {
+        console.error('Failed to load chunk:', err);
+      } finally {
+        setIsLoadingChunk(false);
+      }
+    };
+
+    loadChunkForScroll();
+  }, [useChunks, fileName, fileSize, scrollTop, chunkData, chunkStart]);
+
   // Handle keyboard shortcuts (Vim-style)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -145,7 +207,24 @@ export function HexViewer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selection, onClearSelection]);
 
-  if (!buffer) {
+  // Show loading state if we're in chunk mode and loading initial chunk
+  if (useChunks && isLoadingChunk && !chunkData) {
+    return (
+      <div className="flex items-center justify-center h-full bg-hex-background text-muted-foreground">
+        <div className="text-center">
+          <div className="relative mx-auto mb-4 h-16 w-16">
+            <div className="absolute inset-0 rounded-full border-4 border-gray-200 dark:border-gray-800"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+          </div>
+          <p className="text-sm font-medium">Loading file chunks...</p>
+          <p className="text-xs mt-2">Optimized for large files ({(fileSize / (1024 * 1024)).toFixed(1)} MB)</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show "No file loaded" if we're not in chunk mode and no buffer
+  if (!buffer && !useChunks) {
     return (
       <div className="flex items-center justify-center h-full bg-hex-background text-muted-foreground">
         <div className="text-center">
@@ -158,7 +237,15 @@ export function HexViewer({
   }
 
   return (
-    <div className="h-full flex flex-col bg-hex-background">
+    <div className="h-full flex flex-col bg-hex-background relative">
+      {/* Chunk Loading Indicator (during scroll) */}
+      {useChunks && isLoadingChunk && chunkData && (
+        <div className="absolute top-2 right-2 z-50 flex items-center gap-2 bg-primary/10 backdrop-blur-sm border border-primary/20 rounded-lg px-3 py-1.5 shadow-lg">
+          <div className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+          <span className="text-xs font-medium text-primary">Loading chunk...</span>
+        </div>
+      )}
+
       {/* Address Search Bar */}
       <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-2">
         <div className="relative">

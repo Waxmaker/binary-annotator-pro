@@ -54,7 +54,7 @@ import {
 interface FileData {
   name: string;
   size: number;
-  buffer: ArrayBuffer;
+  buffer?: ArrayBuffer; // Optional - only used for small files or legacy mode
 }
 
 const Index = () => {
@@ -75,9 +75,61 @@ const Index = () => {
   const [isLoadingFiles, setIsLoadingFiles] = useState(true);
   const [isDeletingFile, setIsDeletingFile] = useState(false);
 
-  const currentBuffer = currentFile
-    ? files.find((f) => f.name === currentFile)?.buffer || null
-    : null;
+  const [currentBuffer, setCurrentBuffer] = useState<ArrayBuffer | null>(null);
+  const [isLoadingBuffer, setIsLoadingBuffer] = useState(false);
+
+  // Load buffer only when file is selected
+  // For large files (>50MB), skip loading buffer and use chunk-based loading instead
+  useEffect(() => {
+    if (!currentFile) {
+      setCurrentBuffer(null);
+      return;
+    }
+
+    const file = files.find((f) => f.name === currentFile);
+    if (!file) return;
+
+    // Threshold for chunk-based loading: 50MB
+    const CHUNK_THRESHOLD = 50 * 1024 * 1024;
+
+    // For large files, skip buffer loading - use chunks instead
+    if (file.size > CHUNK_THRESHOLD) {
+      console.log(`File ${file.name} is ${(file.size / (1024 * 1024)).toFixed(1)} MB - using chunk-based loading`);
+      setCurrentBuffer(null);
+      setIsLoadingBuffer(false);
+      return;
+    }
+
+    // If buffer already loaded, use it
+    if (file.buffer) {
+      setCurrentBuffer(file.buffer);
+      return;
+    }
+
+    // Load buffer on demand for small files
+    const loadBuffer = async () => {
+      setIsLoadingBuffer(true);
+      const loadingToast = toast.loading(`Loading ${file.name}...`);
+
+      try {
+        const buffer = await fetchBinaryFile(file.name);
+
+        // Store in file object for caching
+        file.buffer = buffer;
+        setCurrentBuffer(buffer);
+
+        toast.success(`Loaded ${file.name} (${(buffer.byteLength / (1024 * 1024)).toFixed(1)} MB)`, { id: loadingToast });
+      } catch (err) {
+        console.error("Failed to load file:", err);
+        toast.error(`Failed to load ${file.name}`, { id: loadingToast });
+        setCurrentBuffer(null);
+      } finally {
+        setIsLoadingBuffer(false);
+      }
+    };
+
+    loadBuffer();
+  }, [currentFile, files]);
 
   const {
     selection,
@@ -248,7 +300,7 @@ const Index = () => {
   useEffect(() => {
     const loadFilesFromBackend = async () => {
       setIsLoadingFiles(true);
-      const loadingToast = toast.loading("Loading binary files...");
+      const loadingToast = toast.loading("Loading file metadata...");
 
       try {
         const list = await fetchBinaryList();
@@ -259,20 +311,13 @@ const Index = () => {
           return;
         }
 
-        const loaded: FileData[] = [];
-
-        for (let i = 0; i < list.length; i++) {
-          const item = list[i];
-          toast.loading(`Loading files... (${i + 1}/${list.length})`, { id: loadingToast });
-
-          const buffer = await fetchBinaryFile(item.name);
-
-          loaded.push({
-            name: item.name,
-            size: buffer.byteLength,
-            buffer,
-          });
-        }
+        // Only load metadata (name, size) - NOT the actual file data!
+        // File data will be loaded on-demand in chunks
+        const loaded: FileData[] = list.map((item: any) => ({
+          name: item.name,
+          size: item.size,
+          // No buffer - files are loaded via chunk manager on demand
+        }));
 
         setFiles(loaded);
 
@@ -280,7 +325,7 @@ const Index = () => {
           setCurrentFile(loaded[0].name);
         }
 
-        toast.success(`Loaded ${loaded.length} file(s)`, { id: loadingToast });
+        toast.success(`Loaded ${loaded.length} file(s) (${(loaded.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024)).toFixed(1)} MB total)`, { id: loadingToast });
       } catch (err) {
         console.error("Failed loading binary list:", err);
         toast.error("Failed to load files from server", { id: loadingToast });
@@ -481,7 +526,7 @@ const Index = () => {
                     : "hidden"
                 }
               >
-                <AdvancedVisualizations buffer={currentBuffer} />
+                <AdvancedVisualizations buffer={currentBuffer} highlights={highlights} />
               </TabsContent>
               <TabsContent
                 value="compare"
@@ -572,9 +617,21 @@ const Index = () => {
                   <CopyAsMenu selection={selection} />
                 </div>
               </div>
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-hidden relative">
+                {isLoadingBuffer && (
+                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                      <p className="text-sm text-muted-foreground">
+                        Loading file...
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <HexViewer
                   buffer={currentBuffer}
+                  fileName={currentFile || undefined}
+                  fileSize={currentFile ? files.find(f => f.name === currentFile)?.size : undefined}
                   highlights={highlights}
                   selection={selection}
                   onByteClick={handleByteClick}

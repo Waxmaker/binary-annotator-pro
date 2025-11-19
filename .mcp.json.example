@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "binary-annotator": {
+      "command": "/usr/local/bin/python3",
+      "args": [
+        "/app/mcp-server/binary_annotator_mcp.py"
+      ],
+      "env": {
+        "BINARY_ANNOTATOR_API_URL": "http://backend:3000"
+      }
+    }
+  }
+}

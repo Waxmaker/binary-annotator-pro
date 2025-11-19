@@ -167,7 +167,7 @@ func (h *Handler) ListBinaries(c echo.Context) error {
 	return c.JSON(http.StatusOK, files)
 }
 
-// GetBinaryByName: returns the binary file as attachment
+// GetBinaryByName: returns the binary file as attachment (supports HTTP Range requests for chunked loading)
 func (h *Handler) GetBinaryByName(c echo.Context) error {
 	fileName := c.Param("fileName")
 	if fileName == "" {
@@ -177,10 +177,54 @@ func (h *Handler) GetBinaryByName(c echo.Context) error {
 	if err := h.db.GormDB.Where("name = ?", fileName).First(&f).Error; err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "file not found"})
 	}
+
+	// Support HTTP Range requests for chunked loading
+	rangeHeader := c.Request().Header.Get("Range")
+	if rangeHeader != "" {
+		return h.handleRangeRequest(c, f.Data, rangeHeader, f.Name)
+	}
+
 	// stream the blob
 	c.Response().Header().Set(echo.HeaderContentDisposition, fmt.Sprintf("attachment; filename=\"%s\"", filepath.Base(f.Name)))
 	c.Response().Header().Set(echo.HeaderContentType, "application/octet-stream")
+	c.Response().Header().Set("Accept-Ranges", "bytes")
 	return c.Blob(http.StatusOK, "application/octet-stream", f.Data)
+}
+
+// handleRangeRequest handles HTTP range requests for partial content
+func (h *Handler) handleRangeRequest(c echo.Context, data []byte, rangeHeader string, fileName string) error {
+	fileSize := int64(len(data))
+
+	// Parse range header (format: "bytes=start-end")
+	var start, end int64
+	if _, err := fmt.Sscanf(rangeHeader, "bytes=%d-%d", &start, &end); err != nil {
+		// Try format "bytes=start-"
+		if _, err := fmt.Sscanf(rangeHeader, "bytes=%d-", &start); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "invalid range header",
+			})
+		}
+		end = fileSize - 1
+	}
+
+	// Validate range
+	if start < 0 || start >= fileSize || end >= fileSize || start > end {
+		c.Response().Header().Set("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
+		return c.NoContent(http.StatusRequestedRangeNotSatisfiable)
+	}
+
+	// Set headers for partial content
+	contentLength := end - start + 1
+	c.Response().Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize))
+	c.Response().Header().Set("Content-Length", fmt.Sprintf("%d", contentLength))
+	c.Response().Header().Set("Accept-Ranges", "bytes")
+	c.Response().Header().Set("Content-Type", "application/octet-stream")
+	c.Response().Header().Set(echo.HeaderContentDisposition, fmt.Sprintf("attachment; filename=\"%s\"", filepath.Base(fileName)))
+
+	fmt.Printf("Range request: %s bytes %d-%d/%d (%d bytes)\n", fileName, start, end, fileSize, contentLength)
+
+	// Send partial content
+	return c.Blob(http.StatusPartialContent, "application/octet-stream", data[start:end+1])
 }
 
 // GetBinaryByID: helper

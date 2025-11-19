@@ -25,21 +25,21 @@ export interface HexLine {
   ascii: string;
 }
 
-export function parseHexLines(buffer: ArrayBuffer, bytesPerLine: number = 16): HexLine[] {
+export function parseHexLines(buffer: ArrayBuffer, bytesPerLine: number = 16, startOffset: number = 0): HexLine[] {
   const view = new Uint8Array(buffer);
   const lines: HexLine[] = [];
-  
+
   for (let i = 0; i < view.length; i += bytesPerLine) {
     const bytes = Array.from(view.slice(i, Math.min(i + bytesPerLine, view.length)));
     const ascii = bytes.map(toAsciiChar).join('');
-    
+
     lines.push({
-      offset: i,
+      offset: startOffset + i,
       bytes,
       ascii,
     });
   }
-  
+
   return lines;
 }
 
