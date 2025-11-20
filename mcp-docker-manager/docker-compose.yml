@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # MCP Docker Manager - manages MCP server containers
+  mcp-manager:
+    build:
+      context: ./manager
+      dockerfile: Dockerfile
+    container_name: mcp-docker-manager
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount Docker socket to allow manager to control containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Share data directory with MCP servers
+      - mcp-data:/data
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  # Shared volume for MCP server data
+  mcp-data:
+    driver: local
+
+networks:
+  mcp-network:
+    driver: bridge
