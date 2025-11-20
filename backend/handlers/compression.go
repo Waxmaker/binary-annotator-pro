@@ -253,9 +253,18 @@ func (h *Handler) runCompressionDetector(analysisID uint, file models.File) {
 	}
 	defer os.Remove(tmpFile)
 
-	// Execute Python script
+	// Create temporary directory for decompressed files
+	tmpDir := fmt.Sprintf("/tmp/decompressed_%d_%d", file.ID, analysisID)
+	err = os.MkdirAll(tmpDir, 0755)
+	if err != nil {
+		h.updateAnalysisError(analysisID, fmt.Sprintf("Failed to create temp dir: %v", err))
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Execute Python script with output directory
 	scriptPath := "../test/compression_detector.py"
-	cmd := exec.Command("python3", scriptPath, tmpFile, "--json")
+	cmd := exec.Command("python3", scriptPath, tmpFile, "--json", "--output-dir", tmpDir)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -270,8 +279,8 @@ func (h *Handler) runCompressionDetector(analysisID uint, file models.File) {
 		return
 	}
 
-	// Save results to database
-	if err := h.saveCompressionResults(analysisID, file.ID, &report); err != nil {
+	// Save results to database (including decompressed files)
+	if err := h.saveCompressionResults(analysisID, file.ID, &report, tmpDir, tmpFile); err != nil {
 		h.updateAnalysisError(analysisID, fmt.Sprintf("Failed to save results: %v", err))
 		return
 	}
@@ -306,8 +315,64 @@ func (h *Handler) updateAnalysisError(analysisID uint, errorMsg string) {
 	fmt.Printf("Compression analysis %d failed: %s\n", analysisID, errorMsg)
 }
 
+// AddDecompressedToFiles adds a decompressed file to the main files list
+func (h *Handler) AddDecompressedToFiles(c echo.Context) error {
+	resultIDStr := c.Param("resultId")
+	resultID, err := strconv.ParseUint(resultIDStr, 10, 32)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid result ID",
+		})
+	}
+
+	// Get the result
+	var result models.CompressionResult
+	if err := h.db.GormDB.First(&result, resultID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "result not found",
+		})
+	}
+
+	// Check if decompressed file exists
+	if result.DecompressedFileID == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "no decompressed file available",
+		})
+	}
+
+	// Get decompressed file
+	var decompFile models.DecompressedFile
+	if err := h.db.GormDB.First(&decompFile, *result.DecompressedFileID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "decompressed file not found",
+		})
+	}
+
+	// Create new binary file
+	newFile := models.File{
+		Name: decompFile.FileName,
+		Size: decompFile.Size,
+		Data: decompFile.Data,
+	}
+
+	if err := h.db.GormDB.Create(&newFile).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to add file",
+		})
+	}
+
+	return c.JSON(http.StatusCreated, map[string]interface{}{
+		"message": "file added successfully",
+		"file": map[string]interface{}{
+			"id":   newFile.ID,
+			"name": newFile.Name,
+			"size": newFile.Size,
+		},
+	})
+}
+
 // saveCompressionResults saves decompression results to database
-func (h *Handler) saveCompressionResults(analysisID uint, fileID uint, report *PythonAnalysisReport) error {
+func (h *Handler) saveCompressionResults(analysisID uint, fileID uint, report *PythonAnalysisReport, tmpDir, tmpFile string) error {
 	// Save each result
 	for _, pyResult := range report.Results {
 		result := models.CompressionResult{
@@ -328,13 +393,35 @@ func (h *Handler) saveCompressionResults(analysisID uint, fileID uint, report *P
 			result.Error = *pyResult.Error
 		}
 
+		// Save the result first to get an ID
 		if err := h.db.GormDB.Create(&result).Error; err != nil {
 			return fmt.Errorf("failed to save result for %s: %w", pyResult.Method, err)
 		}
 
-		// TODO: Save decompressed file if needed
-		// For now, we skip saving the actual decompressed data to save space
-		// Users can re-run the analysis if they need the decompressed files
+		// Try to load and save decompressed file if it exists and was successful
+		if pyResult.Success && pyResult.ChecksumValid {
+			decompressedPath := fmt.Sprintf("%s.%s.decompressed", tmpFile, pyResult.Method)
+			if data, err := os.ReadFile(decompressedPath); err == nil {
+				// Save decompressed file to database
+				decompressedFile := models.DecompressedFile{
+					OriginalFileID: fileID,
+					ResultID:       result.ID,
+					Method:         pyResult.Method,
+					FileName:       fmt.Sprintf("%s_%s_decompressed", report.FilePath, pyResult.Method),
+					Size:           int64(len(data)),
+					Data:           data,
+				}
+
+				if err := h.db.GormDB.Create(&decompressedFile).Error; err != nil {
+					fmt.Printf("Warning: failed to save decompressed file for %s: %v\n", pyResult.Method, err)
+				} else {
+					// Update result with decompressed file ID
+					decompressedFileID := decompressedFile.ID
+					result.DecompressedFileID = &decompressedFileID
+					h.db.GormDB.Save(&result)
+				}
+			}
+		}
 	}
 
 	return nil

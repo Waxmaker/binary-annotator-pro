@@ -36,6 +36,7 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.GET("/analysis/compression/file/:fileId", h.GetFileCompressionAnalyses)
 	e.GET("/analysis/compression/file/:fileId/latest", h.GetLatestCompressionAnalysis)
 	e.GET("/analysis/compression/download/:resultId", h.DownloadDecompressedFile)
+	e.POST("/analysis/compression/result/:resultId/add-to-files", h.AddDecompressedToFiles)
 	e.DELETE("/analysis/compression/:analysisId", h.DeleteCompressionAnalysis)
 
 	// Delete

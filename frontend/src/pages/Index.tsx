@@ -369,9 +369,10 @@ const Index = () => {
           return;
         }
 
-        // Only load metadata (name, size) - NOT the actual file data!
+        // Only load metadata (id, name, size) - NOT the actual file data!
         // File data will be loaded on-demand in chunks
         const loaded: FileData[] = list.map((item: any) => ({
+          id: item.id,
           name: item.name,
           size: item.size,
           // No buffer - files are loaded via chunk manager on demand
