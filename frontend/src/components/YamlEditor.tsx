@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, Sparkles } from "lucide-react";
+import { Save, Sparkles, Code, List } from "lucide-react";
 import { createYamlConfig, updateYamlConfig } from "@/lib/api";
 import { useAISettings } from "@/hooks/useAISettings";
 import { autoGenerateYAMLTags } from "@/services/aiService";
@@ -20,6 +20,9 @@ import { calculateEntropy } from "@/utils/binaryAnalysis";
 import { findRepeatingPattern } from "@/utils/searchPatterns";
 import { findPeriodicStructures } from "@/utils/patternClustering";
 import { parseYamlConfig } from "@/utils/yamlParser";
+import { TagOffsetManager } from "@/components/TagOffsetManager";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import yaml from "js-yaml";
 
 interface YamlEditorProps {
   value: string;
@@ -28,6 +31,14 @@ interface YamlEditorProps {
   onConfigSaved?: () => void;
   buffer: ArrayBuffer | null;
   fileName: string | null;
+}
+
+interface TagDefinition {
+  name: string;
+  offset: string;
+  size: number;
+  color: string;
+  highlight?: boolean;
 }
 
 export function YamlEditor({
@@ -45,12 +56,105 @@ export function YamlEditor({
   const [generatingAI, setGeneratingAI] = useState(false);
   const [localValue, setLocalValue] = useState(value);
   const [hasChanges, setHasChanges] = useState(false);
+  const [editMode, setEditMode] = useState<"text" | "visual">("text");
+  const [visualTags, setVisualTags] = useState<TagDefinition[]>([]);
 
   // Sync localValue when value changes externally (e.g., loading a config)
   useEffect(() => {
     setLocalValue(value);
     setHasChanges(false);
+    // Parse YAML to extract tags for visual editor
+    extractTagsFromYaml(value);
   }, [value]);
+
+  // Extract tags from YAML text for visual editor
+  const extractTagsFromYaml = (yamlText: string) => {
+    try {
+      if (!yamlText.trim()) {
+        setVisualTags([]);
+        return;
+      }
+
+      const parsed = yaml.load(yamlText) as any;
+      if (!parsed?.tags) {
+        setVisualTags([]);
+        return;
+      }
+
+      const extractedTags: TagDefinition[] = Object.entries(parsed.tags).map(
+        ([name, tagData]: [string, any]) => ({
+          name,
+          offset: typeof tagData.offset === "number"
+            ? `0x${tagData.offset.toString(16).toUpperCase().padStart(4, '0')}`
+            : tagData.offset,
+          size: tagData.size || 1,
+          color: tagData.color || "#95E1D3",
+          highlight: false,
+        })
+      );
+
+      setVisualTags(extractedTags);
+    } catch (err) {
+      console.error("Failed to extract tags from YAML:", err);
+      setVisualTags([]);
+    }
+  };
+
+  // Generate YAML from visual tags
+  const generateYamlFromTags = (tags: TagDefinition[]): string => {
+    try {
+      // Parse existing YAML to preserve search rules
+      let existingConfig: any = {};
+      try {
+        existingConfig = yaml.load(localValue) || {};
+      } catch (err) {
+        // If parsing fails, start fresh
+        existingConfig = {};
+      }
+
+      // Build tags object
+      const tagsObject: any = {};
+      tags.forEach((tag) => {
+        tagsObject[tag.name] = {
+          offset: tag.offset,
+          size: tag.size,
+          color: tag.color,
+        };
+      });
+
+      // Merge with existing config
+      const newConfig = {
+        ...existingConfig,
+        tags: tagsObject,
+      };
+
+      // Generate YAML
+      const yamlText = yaml.dump(newConfig, {
+        indent: 2,
+        lineWidth: -1,
+        noRefs: true,
+      });
+
+      return yamlText;
+    } catch (err) {
+      console.error("Failed to generate YAML from tags:", err);
+      toast.error("Failed to generate YAML");
+      return localValue;
+    }
+  };
+
+  const handleTagsChange = (tags: TagDefinition[]) => {
+    setVisualTags(tags);
+    const newYaml = generateYamlFromTags(tags);
+    setLocalValue(newYaml);
+    setHasChanges(newYaml !== value);
+  };
+
+  const handleTagHighlight = (offset: number) => {
+    // This would trigger scrolling in the hex viewer
+    // We'll need to pass this up through props if needed
+    toast.info(`Highlighting offset: 0x${offset.toString(16).toUpperCase()}`);
+  };
 
   const handleApply = () => {
     onChange(localValue);
@@ -242,61 +346,84 @@ export function YamlEditor({
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
-          <div className="flex-1 flex flex-col gap-2">
-            <Textarea
-              value={localValue}
-              onChange={(e) => handleLocalChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="flex-1 font-mono text-xs resize-none bg-hex-background border-border"
-              placeholder="Enter YAML configuration..."
-              spellCheck={false}
-            />
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="default"
-                onClick={handleApply}
-                disabled={!hasChanges}
-                className="h-8"
-              >
-                Apply Changes
-              </Button>
-              {hasChanges && (
-                <span className="text-xs text-muted-foreground">
-                  You have unsaved changes
-                </span>
-              )}
-            </div>
+        <Tabs value={editMode} onValueChange={(v) => setEditMode(v as "text" | "visual")} className="flex-1 flex flex-col overflow-hidden">
+          <div className="px-4 pt-3 pb-2">
+            <TabsList className="grid w-full grid-cols-2 h-9">
+              <TabsTrigger value="visual" className="text-xs">
+                <List className="h-3.5 w-3.5 mr-1.5" />
+                Visual Editor
+              </TabsTrigger>
+              <TabsTrigger value="text" className="text-xs">
+                <Code className="h-3.5 w-3.5 mr-1.5" />
+                YAML Text
+              </TabsTrigger>
+            </TabsList>
           </div>
 
-          <div className="flex-shrink-0 text-xs text-muted-foreground space-y-1">
-            <p className="font-semibold">Configuration Format:</p>
-            <ul className="list-disc list-inside space-y-0.5 ml-2">
-              <li>
-                <code className="text-primary">search:</code> Search patterns with type support
-              </li>
-              <li>
-                <code className="text-primary">tags:</code> Define offset-based regions
-              </li>
-              <li>
-                Search types:{" "}
-                <code className="text-primary">hex</code>,{" "}
-                <code className="text-primary">string-ascii</code>,{" "}
-                <code className="text-primary">int16le</code>,{" "}
-                <code className="text-primary">uint32le</code>, etc.
-              </li>
-              <li>
-                Colors in hex format (e.g.,{" "}
-                <code className="text-primary">#FF0000</code>)
-              </li>
-              <li>
-                Offsets support hex (e.g.,{" "}
-                <code className="text-primary">0x1000</code>)
-              </li>
-            </ul>
-          </div>
-        </div>
+          <TabsContent value="visual" className="flex-1 overflow-auto p-4 m-0">
+            <TagOffsetManager
+              tags={visualTags}
+              onChange={handleTagsChange}
+              onHighlight={handleTagHighlight}
+            />
+          </TabsContent>
+
+          <TabsContent value="text" className="flex-1 flex flex-col overflow-hidden p-4 gap-4 m-0">
+            <div className="flex-1 flex flex-col gap-2">
+              <Textarea
+                value={localValue}
+                onChange={(e) => handleLocalChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="flex-1 font-mono text-xs resize-none bg-hex-background border-border"
+                placeholder="Enter YAML configuration..."
+                spellCheck={false}
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={handleApply}
+                  disabled={!hasChanges}
+                  className="h-8"
+                >
+                  Apply Changes
+                </Button>
+                {hasChanges && (
+                  <span className="text-xs text-muted-foreground">
+                    You have unsaved changes
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex-shrink-0 text-xs text-muted-foreground space-y-1">
+              <p className="font-semibold">Configuration Format:</p>
+              <ul className="list-disc list-inside space-y-0.5 ml-2">
+                <li>
+                  <code className="text-primary">search:</code> Search patterns with type support
+                </li>
+                <li>
+                  <code className="text-primary">tags:</code> Define offset-based regions
+                </li>
+                <li>
+                  Search types:{" "}
+                  <code className="text-primary">hex</code>,{" "}
+                  <code className="text-primary">string-ascii</code>,{" "}
+                  <code className="text-primary">int16le</code>,{" "}
+                  <code className="text-primary">uint32le</code>, etc.
+                </li>
+                <li>
+                  Colors in hex format (e.g.,{" "}
+                  <code className="text-primary">#FF0000</code>)
+                </li>
+                <li>
+                  Offsets support hex (e.g.,{" "}
+                  <code className="text-primary">0x1000</code>)
+                </li>
+              </ul>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>

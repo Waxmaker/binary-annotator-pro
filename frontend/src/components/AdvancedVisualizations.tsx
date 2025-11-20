@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { ByteHistogram } from "./ByteHistogram";
 import { EntropyGraph } from "./EntropyGraph";
 import { BitmapView } from "./BitmapView";
-import { DigramAnalysis } from "./DigramAnalysis";
+import { TrigramVisualization } from "./TrigramVisualization";
 import { HighlightRange } from "@/utils/colorUtils";
 import {
   BarChart3,
   TrendingUp,
   Image,
-  Grid2x2,
+  Box,
   Info,
   ChevronDown,
   ChevronUp,
@@ -35,7 +35,7 @@ interface AdvancedVisualizationsProps {
   highlights: HighlightRange[];
 }
 
-type VisualizationType = "histogram" | "entropy" | "bitmap" | "digrams";
+type VisualizationType = "histogram" | "entropy" | "bitmap" | "trigrams";
 
 interface VisualizationCard {
   id: VisualizationType;
@@ -70,7 +70,7 @@ export function AdvancedVisualizations({
   };
 
   const expandAll = () => {
-    setExpandedCards(new Set(["histogram", "entropy", "bitmap", "digrams"]));
+    setExpandedCards(new Set(["histogram", "entropy", "bitmap", "trigrams"]));
   };
 
   const collapseAll = () => {
@@ -106,13 +106,13 @@ export function AdvancedVisualizations({
       component: <BitmapView buffer={buffer} highlights={highlights} />,
     },
     {
-      id: "digrams",
-      title: "Digram Analysis",
-      icon: <Grid2x2 className="h-5 w-5" />,
-      description: "Frequency analysis of consecutive byte pairs",
-      whatIsIt: "Tracks which two-byte combinations appear most often (like 'th' in English text)",
-      whyUseful: "Reveals compression patterns, repeated structures, and file format signatures. High-frequency pairs might indicate protocol headers or data encoding schemes.",
-      component: <DigramAnalysis buffer={buffer} />,
+      id: "trigrams",
+      title: "Trigram Shapes (3D)",
+      icon: <Box className="h-5 w-5" />,
+      description: "3D visualization of three-byte sequences with multiple coordinate systems",
+      whatIsIt: "Maps 3-byte sequences to 3D space (x, y, z coordinates) showing file structure in Cartesian, Cylindrical, or Spherical views",
+      whyUseful: "Reveals complex patterns invisible in 2D. Color gradient (yellow→blue) shows data distribution from file start to end. Different shapes expose different structural patterns in binary files, compressed data, and executables.",
+      component: <TrigramVisualization buffer={buffer} />,
     },
   ];
 

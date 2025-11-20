@@ -1,7 +1,20 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Maximize2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   compareBinaryBuffers,
   DiffChunk,
@@ -32,6 +45,8 @@ export function BinaryDiffViewer({
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isRestoringScroll, setIsRestoringScroll] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [cursorOffset, setCursorOffset] = useState<number | null>(null);
 
   const diffChunks = useMemo(() => {
     if (!buffer1 || !buffer2) return [];
@@ -95,27 +110,68 @@ export function BinaryDiffViewer({
     );
   }
 
+  const renderDiffContent = () => (
+    <>
+      {/* Header */}
+      <div className="grid grid-cols-[80px_1fr_1fr] gap-4 mb-2 font-semibold text-xs border-b pb-2">
+        <div>Offset</div>
+        <div>{fileName1}</div>
+        <div>{fileName2}</div>
+      </div>
+
+      {/* Diff rows */}
+      {diffChunks.map((chunk, index) => (
+        <DiffRow
+          key={index}
+          chunk={chunk}
+          onMouseEnter={() => setCursorOffset(chunk.offset)}
+          onMouseLeave={() => setCursorOffset(null)}
+        />
+      ))}
+    </>
+  );
+
   return (
     <div className="h-full flex flex-col relative">
       <div className="p-4 border-b border-panel-border bg-panel-header">
-        <h3 className="text-sm font-semibold">Side-by-Side Binary Diff</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Side-by-Side Binary Diff</h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setZoomOpen(true)}
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Open in big view</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       <ScrollArea className="flex-1" viewportRef={scrollViewportRef}>
         <div className="p-4">
-          {/* Header */}
-          <div className="grid grid-cols-[80px_1fr_1fr] gap-4 mb-2 font-semibold text-xs border-b pb-2">
-            <div>Offset</div>
-            <div>{fileName1}</div>
-            <div>{fileName2}</div>
-          </div>
-
-          {/* Diff rows */}
-          {diffChunks.map((chunk, index) => (
-            <DiffRow key={index} chunk={chunk} />
-          ))}
+          {renderDiffContent()}
         </div>
       </ScrollArea>
+
+      {/* Cursor info tooltip */}
+      {cursorOffset !== null && (
+        <div className="absolute top-20 left-4 bg-background/95 border border-primary/50 rounded-lg shadow-lg px-3 py-2 text-xs font-mono pointer-events-none z-10">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Offset:</span>
+            <span className="text-primary font-semibold">
+              0x{cursorOffset.toString(16).toUpperCase().padStart(8, '0')}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Back to Top Button */}
       {showBackToTop && (
@@ -162,11 +218,68 @@ export function BinaryDiffViewer({
           </div>
         </div>
       </div>
+
+      {/* Zoom Dialog */}
+      <Dialog open={zoomOpen} onOpenChange={setZoomOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] h-[95vh] p-0">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle>Side-by-Side Binary Diff</DialogTitle>
+            <DialogDescription>
+              Comparing {fileName1} and {fileName2}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-1">
+            <div className="p-6">
+              {renderDiffContent()}
+            </div>
+          </ScrollArea>
+          <div className="px-6 py-4 border-t bg-muted/30">
+            <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-4 h-4 border"
+                  style={{ backgroundColor: getDiffColor(DiffType.EQUAL) }}
+                />
+                <span>Equal</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-4 h-4 border"
+                  style={{ backgroundColor: getDiffColor(DiffType.MODIFIED) }}
+                />
+                <span>Modified</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-4 h-4 border"
+                  style={{ backgroundColor: getDiffColor(DiffType.ADDED) }}
+                />
+                <span>Added</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-4 h-4 border"
+                  style={{ backgroundColor: getDiffColor(DiffType.REMOVED) }}
+                />
+                <span>Removed</span>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function DiffRow({ chunk }: { chunk: DiffChunk }) {
+function DiffRow({
+  chunk,
+  onMouseEnter,
+  onMouseLeave
+}: {
+  chunk: DiffChunk;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+}) {
   const renderBytes = (data: Uint8Array | undefined, isFile2: boolean) => {
     if (!data || data.length === 0) {
       return (
@@ -208,7 +321,11 @@ function DiffRow({ chunk }: { chunk: DiffChunk }) {
   };
 
   return (
-    <div className="grid grid-cols-[80px_1fr_1fr] gap-4 py-2 border-b hover:bg-accent/30">
+    <div
+      className="grid grid-cols-[80px_1fr_1fr] gap-4 py-2 border-b hover:bg-accent/30"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <div className="font-mono text-xs text-muted-foreground">
         {chunk.offset.toString(16).toUpperCase().padStart(8, "0")}
       </div>

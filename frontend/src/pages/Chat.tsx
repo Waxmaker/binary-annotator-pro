@@ -55,18 +55,6 @@ interface BinaryFile {
   size: number;
 }
 
-interface MCPStatus {
-  connected_servers: number;
-  total_tools: number;
-  servers: Array<{
-    name: string;
-    connected: boolean;
-    initialized: boolean;
-    tools_count: number;
-    version?: string;
-  }>;
-}
-
 const Chat = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -87,13 +75,18 @@ const Chat = () => {
     // Load from localStorage on mount (shared with Index page)
     return localStorage.getItem('selectedBinaryFile');
   });
-  const [mcpStatus, setMcpStatus] = useState<MCPStatus | null>(null);
+  const [dockerStats, setDockerStats] = useState<{ serverCount: number; totalTools: number } | null>(null);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsMcpOpen, setSettingsMcpOpen] = useState(false);
+  const [pendingToolApproval, setPendingToolApproval] = useState<{
+    tool_name: string;
+    arguments: Record<string, any>;
+    server: string;
+  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -172,23 +165,26 @@ const Chat = () => {
     loadFiles();
   }, []);
 
-  // Load MCP status
+  // Load MCP Docker stats
   useEffect(() => {
-    const loadMCPStatus = async () => {
+    const loadDockerStats = async () => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-        const response = await fetch(`${apiUrl}/mcp/status`);
+        const response = await fetch(`${apiUrl}/mcp/docker/stats`);
         if (response.ok) {
-          const status = await response.json();
-          setMcpStatus(status);
+          const stats = await response.json();
+          setDockerStats({
+            serverCount: stats.serverCount || 0,
+            totalTools: stats.totalTools || 0,
+          });
         }
       } catch (err) {
-        console.error("Failed to load MCP status:", err);
+        console.error("Failed to load MCP Docker stats:", err);
       }
     };
-    loadMCPStatus();
-    // Poll every 30 seconds
-    const interval = setInterval(loadMCPStatus, 30000);
+    loadDockerStats();
+    // Poll every 5 seconds for real-time updates
+    const interval = setInterval(loadDockerStats, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -285,6 +281,12 @@ const Chat = () => {
         setIsStreaming(false);
         setStreamingMessage("");
         break;
+
+      case "tool_approval_request":
+        if (data.tool_approval) {
+          setPendingToolApproval(data.tool_approval);
+        }
+        break;
     }
   };
 
@@ -316,6 +318,25 @@ const Chat = () => {
         session_id: sessionId,
       }),
     );
+  };
+
+  const handleToolApproval = (approved: boolean) => {
+    if (!ws || !connected || !currentSessionId) {
+      toast.error("Not connected");
+      return;
+    }
+
+    ws.send(
+      JSON.stringify({
+        type: "tool_approval",
+        user_id: userID,
+        session_id: currentSessionId,
+        tool_approved: approved,
+      }),
+    );
+
+    // Clear pending approval
+    setPendingToolApproval(null);
   };
 
   const deleteSession = async (sessionId: number, e: React.MouseEvent) => {
@@ -533,16 +554,15 @@ const Chat = () => {
             </span>
           </div>
 
-          {/* MCP Status */}
-          {mcpStatus && mcpStatus.connected_servers > 0 && (
+          {/* MCP Docker Status */}
+          {dockerStats && dockerStats.serverCount > 0 && (
             <div
               onClick={() => setSettingsMcpOpen(true)}
-              className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-md cursor-pointer"
+              className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-md cursor-pointer hover:bg-primary/20 transition-colors"
             >
-              <div className="h-2 w-2 rounded-full bg-primary" />
+              <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
               <span className="text-xs font-medium text-foreground">
-                MCP: {mcpStatus.connected_servers} server(s),{" "}
-                {mcpStatus.total_tools} tool(s)
+                MCP: {dockerStats.serverCount} server(s), {dockerStats.totalTools} tool(s)
               </span>
             </div>
           )}
@@ -751,6 +771,62 @@ const Chat = () => {
                 </div>
               </ScrollArea>
 
+              {/* Tool Approval Request */}
+              {pendingToolApproval && (
+                <div className="border-t border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4">
+                  <div className="max-w-3xl mx-auto">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                        <Activity className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                          Tool Execution Request
+                        </h4>
+                        <p className="text-sm text-amber-800 dark:text-amber-200 mb-2">
+                          The AI wants to execute the following tool:
+                        </p>
+                        <div className="bg-white dark:bg-gray-900 rounded-lg p-3 mb-3 border border-amber-200 dark:border-amber-800">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-mono font-semibold text-gray-900 dark:text-gray-100">
+                              {pendingToolApproval.tool_name}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              ({pendingToolApproval.server})
+                            </span>
+                          </div>
+                          {Object.keys(pendingToolApproval.arguments).length > 0 && (
+                            <div className="text-xs">
+                              <span className="text-gray-600 dark:text-gray-400">Arguments:</span>
+                              <pre className="mt-1 p-2 bg-gray-50 dark:bg-gray-800 rounded text-gray-800 dark:text-gray-200 overflow-x-auto">
+                                {JSON.stringify(pendingToolApproval.arguments, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleToolApproval(true)}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            Allow
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleToolApproval(false)}
+                            className="border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                          >
+                            Deny
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Input */}
               <div className="border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-950">
                 <div className="max-w-3xl mx-auto">
@@ -826,7 +902,6 @@ const Chat = () => {
       <SettingsMcp
         open={settingsMcpOpen}
         onOpenChange={setSettingsMcpOpen}
-        MCPStatus={mcpStatus}
       />
     </div>
   );

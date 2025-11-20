@@ -1,6 +1,21 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Maximize2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   calculateDiffStats,
   findByteChanges,
@@ -21,6 +36,8 @@ export function DeltaAnalysis({
   fileName1 = "File 1",
   fileName2 = "File 2",
 }: DeltaAnalysisProps) {
+  const [zoomOpen, setZoomOpen] = useState(false);
+
   const { stats, changes, regions } = useMemo(() => {
     if (!buffer1 || !buffer2) {
       return { stats: null, changes: [], regions: [] };
@@ -40,14 +57,8 @@ export function DeltaAnalysis({
     );
   }
 
-  return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-panel-border bg-panel-header">
-        <h3 className="text-sm font-semibold">Delta Analysis</h3>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
+  const renderContent = () => (
+    <div className="p-4 space-y-6">
           {/* Statistics */}
           {stats && (
             <div>
@@ -240,8 +251,56 @@ export function DeltaAnalysis({
               </p>
             )}
           </div>
-        </div>
-      </ScrollArea>
     </div>
+  );
+
+  return (
+    <>
+      <div className="h-full flex flex-col">
+        <div className="p-4 border-b border-panel-border bg-panel-header">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Delta Analysis</h3>
+            {!zoomOpen && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setZoomOpen(true)}
+                      className="ml-2"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Expand view</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        </div>
+
+        <ScrollArea className="flex-1">
+          {renderContent()}
+        </ScrollArea>
+      </div>
+
+      {/* Zoom Dialog */}
+      <Dialog open={zoomOpen} onOpenChange={setZoomOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] h-[95vh] p-0">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle>Delta Analysis</DialogTitle>
+            <DialogDescription className="text-xs">
+              Expanded view - {fileName1} vs {fileName2}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-1">
+            {renderContent()}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

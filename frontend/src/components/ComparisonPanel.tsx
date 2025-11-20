@@ -163,9 +163,6 @@ export function ComparisonPanel({ files }: ComparisonPanelProps) {
                     <SelectItem key={index} value={index.toString()}>
                       <div className="flex items-center justify-between gap-4 w-full">
                         <span className="font-mono text-sm">{file.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {(file.size / 1024).toFixed(1)} KB
-                        </span>
                       </div>
                     </SelectItem>
                   ))}
@@ -197,9 +194,6 @@ export function ComparisonPanel({ files }: ComparisonPanelProps) {
                     <SelectItem key={index} value={index.toString()}>
                       <div className="flex items-center justify-between gap-4 w-full">
                         <span className="font-mono text-sm">{file.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {(file.size / 1024).toFixed(1)} KB
-                        </span>
                       </div>
                     </SelectItem>
                   ))}

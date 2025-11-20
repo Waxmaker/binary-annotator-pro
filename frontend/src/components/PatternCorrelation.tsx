@@ -1,14 +1,36 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { calculatePatternCorrelation } from "@/utils/binaryDiff";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Maximize2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useTheme } from "@/hooks/useTheme";
+import { formatAddress } from "@/utils/binaryUtils";
 
 interface PatternCorrelationProps {
   buffer1: ArrayBuffer | null;
   buffer2: ArrayBuffer | null;
   fileName1?: string;
   fileName2?: string;
+}
+
+interface CursorInfo {
+  x: number;
+  offset: number;
+  correlation: number;
 }
 
 export function PatternCorrelation({
@@ -18,7 +40,10 @@ export function PatternCorrelation({
   fileName2 = "File 2",
 }: PatternCorrelationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { theme, systemTheme } = useTheme();
   const [windowSize, setWindowSize] = useState(256);
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [cursorInfo, setCursorInfo] = useState<CursorInfo | null>(null);
 
   const correlationData = useMemo(() => {
     if (!buffer1 || !buffer2) return null;
@@ -34,14 +59,27 @@ export function PatternCorrelation({
 
     const width = canvas.width;
     const height = canvas.height;
-    const padding = 40;
+    const padding = 50;
+
+    // Determine if we're in dark mode
+    const effectiveTheme = theme === "system" ? systemTheme : theme;
+    const isDark = effectiveTheme === "dark";
+
+    // Colors based on theme
+    const bgColor = isDark ? "#0a0a0a" : "#ffffff";
+    const gridColor = isDark ? "#27272a" : "#f4f4f5";
+    const textColor = isDark ? "#a1a1aa" : "#52525b";
+    const axisColor = isDark ? "#52525b" : "#27272a";
+    const lineColor = isDark ? "#60a5fa" : "#3b82f6";
+    const fillColor = isDark ? "rgba(96, 165, 250, 0.15)" : "rgba(59, 130, 246, 0.1)";
+    const thresholdColor = isDark ? "#f87171" : "#ef4444";
 
     // Clear canvas
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, width, height);
 
     // Draw grid
-    ctx.strokeStyle = "#f0f0f0";
+    ctx.strokeStyle = gridColor;
     ctx.lineWidth = 1;
 
     // Horizontal grid lines (0%, 25%, 50%, 75%, 100%)
@@ -53,15 +91,26 @@ export function PatternCorrelation({
       ctx.stroke();
 
       // Y-axis labels
-      ctx.fillStyle = "#666";
-      ctx.font = "10px monospace";
+      ctx.fillStyle = textColor;
+      ctx.font = "11px monospace";
       ctx.textAlign = "right";
       const percent = 100 - i * 25;
-      ctx.fillText(`${percent}%`, padding - 5, y + 3);
+      ctx.fillText(`${percent}%`, padding - 8, y + 4);
+    }
+
+    // Vertical grid lines
+    const gridSteps = 10;
+    for (let i = 0; i <= gridSteps; i++) {
+      const x = padding + ((width - 2 * padding) * i) / gridSteps;
+      ctx.strokeStyle = gridColor;
+      ctx.beginPath();
+      ctx.moveTo(x, padding);
+      ctx.lineTo(x, height - padding);
+      ctx.stroke();
     }
 
     // Draw correlation line
-    ctx.strokeStyle = "#3498db";
+    ctx.strokeStyle = lineColor;
     ctx.lineWidth = 2;
     ctx.beginPath();
 
@@ -84,12 +133,12 @@ export function PatternCorrelation({
     ctx.lineTo(width - padding, height - padding);
     ctx.lineTo(padding, height - padding);
     ctx.closePath();
-    ctx.fillStyle = "rgba(52, 152, 219, 0.1)";
+    ctx.fillStyle = fillColor;
     ctx.fill();
 
     // Draw threshold line at 50%
     const thresholdY = padding + (height - 2 * padding) / 2;
-    ctx.strokeStyle = "#e74c3c";
+    ctx.strokeStyle = thresholdColor;
     ctx.lineWidth = 1;
     ctx.setLineDash([5, 5]);
     ctx.beginPath();
@@ -98,13 +147,13 @@ export function PatternCorrelation({
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = "#e74c3c";
+    ctx.fillStyle = thresholdColor;
     ctx.font = "10px sans-serif";
     ctx.textAlign = "left";
     ctx.fillText("50% threshold", padding + 5, thresholdY - 5);
 
     // Draw axes
-    ctx.strokeStyle = "#333";
+    ctx.strokeStyle = axisColor;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(padding, padding);
@@ -112,44 +161,120 @@ export function PatternCorrelation({
     ctx.lineTo(width - padding, height - padding);
     ctx.stroke();
 
-    // Draw title
-    ctx.fillStyle = "#333";
-    ctx.font = "12px sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText("Pattern Correlation", 5, 15);
-
     // Calculate average correlation
     const avgCorrelation =
       correlationData.reduce((a, b) => a + b, 0) / correlationData.length;
-    ctx.fillStyle = "#666";
-    ctx.font = "10px monospace";
+
+    // Draw stats
+    ctx.fillStyle = textColor;
+    ctx.font = "11px monospace";
     ctx.textAlign = "right";
-    ctx.fillText(`Avg: ${avgCorrelation.toFixed(1)}%`, width - 5, 15);
+    ctx.fillText(`Avg: ${avgCorrelation.toFixed(1)}%`, width - 5, 20);
 
     // Find regions below 50% correlation (different patterns)
     const differentRegions = correlationData.filter((c) => c < 50).length;
     ctx.fillText(
-      `Different regions: ${differentRegions}/${correlationData.length}`,
+      `Different: ${differentRegions}/${correlationData.length}`,
       width - 5,
-      30,
+      35,
     );
-  }, [correlationData]);
 
-  if (!buffer1 || !buffer2) {
-    return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        Select two files to compare
-      </div>
-    );
-  }
+    // Draw cursor info if present
+    if (cursorInfo) {
+      ctx.save();
 
-  return (
+      // Draw vertical line at cursor
+      ctx.strokeStyle = isDark ? "#fbbf24" : "#f59e0b";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(cursorInfo.x, padding);
+      ctx.lineTo(cursorInfo.x, height - padding);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw cursor info box
+      const infoText = `Offset: ${formatAddress(cursorInfo.offset)} | ${cursorInfo.correlation.toFixed(1)}%`;
+      ctx.font = "11px monospace";
+      ctx.textAlign = "left";
+      const textWidth = ctx.measureText(infoText).width;
+      const boxX = Math.min(cursorInfo.x + 10, width - textWidth - 25);
+      const boxY = padding + 15;
+
+      ctx.fillStyle = isDark ? "rgba(0, 0, 0, 0.85)" : "rgba(255, 255, 255, 0.95)";
+      ctx.strokeStyle = isDark ? "#fbbf24" : "#f59e0b";
+      ctx.lineWidth = 1;
+      ctx.fillRect(boxX - 5, boxY - 15, textWidth + 10, 20);
+      ctx.strokeRect(boxX - 5, boxY - 15, textWidth + 10, 20);
+
+      ctx.fillStyle = isDark ? "#fbbf24" : "#f59e0b";
+      ctx.fillText(infoText, boxX, boxY);
+
+      ctx.restore();
+    }
+  }, [correlationData, theme, systemTheme, cursorInfo]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !correlationData || !buffer1) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const x = (e.clientX - rect.left) * scaleX;
+
+    const padding = 50;
+    const width = canvas.width;
+
+    // Check if within graph bounds
+    if (x < padding || x > width - padding) {
+      setCursorInfo(null);
+      return;
+    }
+
+    // Calculate offset from x position
+    const xStep = (width - 2 * padding) / (correlationData.length - 1 || 1);
+    const dataIndex = Math.round((x - padding) / xStep);
+
+    if (dataIndex >= 0 && dataIndex < correlationData.length) {
+      const offset = Math.floor((dataIndex / correlationData.length) * buffer1.byteLength);
+      const correlation = correlationData[dataIndex];
+
+      setCursorInfo({ x, offset, correlation });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setCursorInfo(null);
+  };
+
+  const renderContent = () => (
     <div className="h-full flex flex-col p-4 gap-4">
-      <div>
-        <h3 className="text-sm font-semibold mb-2">Pattern Correlation Analysis</h3>
-        <p className="text-xs text-muted-foreground">
-          Shows how similar byte patterns are across both files using sliding windows
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold mb-2">Pattern Correlation Analysis</h3>
+          <p className="text-xs text-muted-foreground">
+            Shows how similar byte patterns are across both files using sliding windows
+          </p>
+        </div>
+        {!zoomOpen && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setZoomOpen(true)}
+                  className="ml-2"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Expand view</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -164,7 +289,14 @@ export function PatternCorrelation({
       </div>
 
       <div className="flex-1 flex items-center justify-center">
-        <canvas ref={canvasRef} width={800} height={300} className="w-full" />
+        <canvas
+          ref={canvasRef}
+          width={900}
+          height={400}
+          className="w-full h-auto cursor-crosshair"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        />
       </div>
 
       <div className="space-y-2 text-xs text-muted-foreground">
@@ -193,5 +325,34 @@ export function PatternCorrelation({
         </ul>
       </div>
     </div>
+  );
+
+  if (!buffer1 || !buffer2) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        Select two files to compare
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {renderContent()}
+
+      {/* Zoom Dialog */}
+      <Dialog open={zoomOpen} onOpenChange={setZoomOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] h-[95vh] p-0">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle>Pattern Correlation Analysis</DialogTitle>
+            <DialogDescription className="text-xs">
+              Expanded view - {fileName1} vs {fileName2}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {renderContent()}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
