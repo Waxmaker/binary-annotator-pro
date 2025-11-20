@@ -315,6 +315,67 @@ func (h *Handler) updateAnalysisError(analysisID uint, errorMsg string) {
 	fmt.Printf("Compression analysis %d failed: %s\n", analysisID, errorMsg)
 }
 
+// ListDecompressedFiles returns all decompressed files
+func (h *Handler) ListDecompressedFiles(c echo.Context) error {
+	var decompFiles []models.DecompressedFile
+
+	// Get all decompressed files with their associated data
+	if err := h.db.GormDB.Order("created_at DESC").Find(&decompFiles).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to fetch decompressed files",
+		})
+	}
+
+	// Format response with file info
+	type DecompressedFileInfo struct {
+		ID             uint   `json:"id"`
+		OriginalFileID uint   `json:"original_file_id"`
+		ResultID       uint   `json:"result_id"`
+		Method         string `json:"method"`
+		FileName       string `json:"file_name"`
+		Size           int64  `json:"size"`
+		CreatedAt      string `json:"created_at"`
+	}
+
+	response := make([]DecompressedFileInfo, len(decompFiles))
+	for i, df := range decompFiles {
+		response[i] = DecompressedFileInfo{
+			ID:             df.ID,
+			OriginalFileID: df.OriginalFileID,
+			ResultID:       df.ResultID,
+			Method:         df.Method,
+			FileName:       df.FileName,
+			Size:           df.Size,
+			CreatedAt:      df.CreatedAt.Format("2006-01-02 15:04:05"),
+		}
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// GetDecompressedFileData returns the binary data of a decompressed file
+func (h *Handler) GetDecompressedFileData(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid file ID",
+		})
+	}
+
+	var decompFile models.DecompressedFile
+	if err := h.db.GormDB.First(&decompFile, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "file not found",
+		})
+	}
+
+	// Return binary data
+	c.Response().Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", decompFile.FileName))
+	c.Response().Header().Set("Content-Type", "application/octet-stream")
+	return c.Blob(http.StatusOK, "application/octet-stream", decompFile.Data)
+}
+
 // AddDecompressedToFiles adds a decompressed file to the main files list
 func (h *Handler) AddDecompressedToFiles(c echo.Context) error {
 	resultIDStr := c.Param("resultId")

@@ -20,6 +20,9 @@ import {
   Lightbulb,
   Code,
   ExternalLink,
+  Server,
+  Database,
+  Container,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -877,6 +880,976 @@ tags:
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "api-reference",
+      title: "API Reference",
+      icon: Server,
+      content: (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-3xl font-bold mb-4">API Reference</h2>
+            <p className="text-lg text-muted-foreground mb-6">
+              Complete REST API documentation for Binary Annotator Pro.
+            </p>
+            <div className="bg-muted/50 border rounded-lg p-4">
+              <p className="text-sm">
+                <strong>Base URL:</strong>{" "}
+                <code className="bg-background px-2 py-1 rounded">
+                  http://localhost:3000
+                </code>
+              </p>
+              <p className="text-sm mt-2">
+                <strong>Response Format:</strong> JSON
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            {/* Binary Files */}
+            <div>
+              <h3 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+                <Database className="h-6 w-6 text-primary" />
+                Binary Files
+              </h3>
+              <div className="space-y-3">
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">/upload/binary</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Upload a binary file to the database
+                  </p>
+                  <div className="bg-background rounded p-3 text-xs">
+                    <p className="font-semibold mb-1">Request:</p>
+                    <code>Content-Type: multipart/form-data</code>
+                    <br />
+                    <code>file: [binary file]</code>
+                    <p className="font-semibold mt-2 mb-1">Response:</p>
+                    <code>{`{"message": "File uploaded", "fileName": "example.bin"}`}</code>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">/get/list/binary</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    List all binary files with metadata
+                  </p>
+                  <div className="bg-background rounded p-3 text-xs">
+                    <p className="font-semibold mb-1">Response:</p>
+                    <pre className="overflow-x-auto">{`[
+  {
+    "id": 1,
+    "name": "file.bin",
+    "size": 1024,
+    "created_at": "2025-01-20T10:00:00Z"
+  }
+]`}</pre>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">
+                      /get/binary/:fileName
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Download binary file content (returns raw bytes)
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">/get/binary-by-id/:id</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Get binary file metadata by ID
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-yellow-600 text-white text-xs font-bold rounded">
+                      PUT
+                    </span>
+                    <code className="text-sm font-mono">
+                      /rename/binary/:name
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Rename a binary file
+                  </p>
+                  <div className="bg-background rounded p-3 text-xs">
+                    <p className="font-semibold mb-1">Request Body:</p>
+                    <code>{`{"new_name": "newfile.bin"}`}</code>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded">
+                      DELETE
+                    </span>
+                    <code className="text-sm font-mono">
+                      /delete/binary/:name
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Delete a binary file from database
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* YAML Configurations */}
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">YAML Configurations</h3>
+              <div className="space-y-3">
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">/upload/yaml</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Save or update YAML configuration
+                  </p>
+                  <div className="bg-background rounded p-3 text-xs">
+                    <p className="font-semibold mb-1">Request Body:</p>
+                    <code>{`{"name": "config.yaml", "content": "..."}`}</code>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">/get/list/yaml</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    List all saved YAML configurations
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">/get/yaml/:configName</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Get YAML configuration content
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-yellow-600 text-white text-xs font-bold rounded">
+                      PUT
+                    </span>
+                    <code className="text-sm font-mono">/update/yaml/:name</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Update existing YAML configuration
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded">
+                      DELETE
+                    </span>
+                    <code className="text-sm font-mono">/delete/yaml/:name</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Delete YAML configuration
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Analysis & Search */}
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Analysis & Search</h3>
+              <div className="space-y-3">
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">/search</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Search for patterns in binary file (16+ data types supported)
+                  </p>
+                  <div className="bg-background rounded p-3 text-xs">
+                    <p className="font-semibold mb-1">Request Body:</p>
+                    <pre className="overflow-x-auto">{`{
+  "fileName": "file.bin",
+  "searches": {
+    "pattern_name": {
+      "value": "FF FF",
+      "type": "hex",
+      "color": "#FF0000"
+    }
+  }
+}`}</pre>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">
+                      /analysis/trigrams/:name
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Get trigram analysis for visualization
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Compression Detection */}
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">
+                Compression Detection
+              </h3>
+              <div className="space-y-3">
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">
+                      /analysis/compression/:fileId
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Start compression analysis on a file (tests 9+ algorithms)
+                  </p>
+                  <div className="bg-background rounded p-3 text-xs">
+                    <p className="font-semibold mb-1">Response:</p>
+                    <code>{`{"analysisId": 1, "status": "running"}`}</code>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">
+                      /analysis/compression/:analysisId
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Get compression analysis results with all test details
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">
+                      /analysis/compression/file/:fileId/latest
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Get most recent analysis for a file
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">/decompressed/list</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    List all successfully decompressed files
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">
+                      /decompressed/:id/data
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Download decompressed file binary data
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">
+                      /analysis/compression/result/:resultId/add-to-files
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Add decompressed file to main files list
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded">
+                      DELETE
+                    </span>
+                    <code className="text-sm font-mono">
+                      /analysis/compression/:analysisId
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Delete compression analysis and related decompressed files
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Integration */}
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">AI Integration</h3>
+              <div className="space-y-3">
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">
+                      /ai/settings/:userId
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Get AI settings (Ollama URL, model, etc.)
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">
+                      /ai/settings/:userId
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Save AI settings
+                  </p>
+                  <div className="bg-background rounded p-3 text-xs">
+                    <p className="font-semibold mb-1">Request Body:</p>
+                    <pre className="overflow-x-auto">{`{
+  "provider": "ollama",
+  "base_url": "http://localhost:11434",
+  "model": "qwen2.5-coder:7b"
+}`}</pre>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">/ai/test/:userId</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Test AI connection
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded">
+                      WS
+                    </span>
+                    <code className="text-sm font-mono">/ws/chat</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    WebSocket endpoint for AI chat (streaming responses)
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">
+                      /chat/sessions/:userId
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Get all chat sessions for user
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded">
+                      DELETE
+                    </span>
+                    <code className="text-sm font-mono">
+                      /chat/session/:sessionId
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Delete a chat session
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* MCP Docker Manager */}
+            <div>
+              <h3 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+                <Container className="h-6 w-6 text-primary" />
+                MCP Docker Manager
+              </h3>
+              <div className="space-y-3">
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">/mcp/docker/health</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Check MCP Docker Manager health status
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">/mcp/docker/stats</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Get aggregated statistics about running MCP servers
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                      GET
+                    </span>
+                    <code className="text-sm font-mono">/mcp/docker/servers</code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    List all running MCP server containers
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">
+                      /mcp/docker/servers/:name/start
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Start an MCP server container
+                  </p>
+                  <div className="bg-background rounded p-3 text-xs">
+                    <p className="font-semibold mb-1">Request Body:</p>
+                    <code>{`{"image": "mcp/filesystem:latest"}`}</code>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">
+                      /mcp/docker/servers/:name/stop
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Stop an MCP server container
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">
+                      /mcp/docker/servers/:name/toggle
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Toggle server on/off
+                  </p>
+                  <div className="bg-background rounded p-3 text-xs">
+                    <p className="font-semibold mb-1">Request Body:</p>
+                    <code>{`{"action": "start|stop", "image": "..."}`}</code>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">
+                      POST
+                    </span>
+                    <code className="text-sm font-mono">
+                      /mcp/docker/servers/:name/call
+                    </code>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Call a tool on an MCP server
+                  </p>
+                  <div className="bg-background rounded p-3 text-xs">
+                    <p className="font-semibold mb-1">Request Body:</p>
+                    <pre className="overflow-x-auto">{`{
+  "tool": "read_file",
+  "arguments": {
+    "path": "/path/to/file"
+  }
+}`}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "mcp-integration",
+      title: "MCP Integration",
+      icon: Container,
+      content: (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-3xl font-bold mb-4">MCP Integration</h2>
+            <p className="text-lg text-muted-foreground mb-6">
+              Model Context Protocol (MCP) integration for extending Binary
+              Annotator Pro with containerized tools and services.
+            </p>
+          </div>
+
+          <div className="space-y-8">
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">What is MCP?</h3>
+              <div className="bg-muted/50 border rounded-lg p-6">
+                <p className="text-muted-foreground mb-4">
+                  The Model Context Protocol (MCP) is an open standard for
+                  connecting AI assistants to external data sources and tools.
+                  Binary Annotator Pro implements MCP through a Docker-based
+                  manager that runs MCP servers in isolated containers.
+                </p>
+                <ul className="space-y-2 ml-4">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>
+                      <strong>Isolated Execution:</strong> Each MCP server runs
+                      in its own Docker container
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>
+                      <strong>Dynamic Management:</strong> Start/stop servers
+                      on demand
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>
+                      <strong>Tool Discovery:</strong> Automatically discover
+                      available tools from running servers
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>
+                      <strong>AI Integration:</strong> Tools are available to
+                      the AI assistant during chat sessions
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Architecture</h3>
+              <div className="border rounded-lg p-6 bg-muted/30">
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center flex-shrink-0">
+                      <span className="text-primary font-bold">1</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold">MCP Docker Manager</p>
+                      <p className="text-sm text-muted-foreground">
+                        Standalone Go service (port 8080) that manages Docker
+                        containers
+                      </p>
+                      <code className="text-xs bg-background px-2 py-1 rounded mt-1 inline-block">
+                        localhost:8080
+                      </code>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center flex-shrink-0">
+                      <span className="text-primary font-bold">2</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Backend Proxy</p>
+                      <p className="text-sm text-muted-foreground">
+                        Binary Annotator Pro backend proxies requests to the MCP
+                        manager
+                      </p>
+                      <code className="text-xs bg-background px-2 py-1 rounded mt-1 inline-block">
+                        /mcp/docker/* → localhost:8080/*
+                      </code>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center flex-shrink-0">
+                      <span className="text-primary font-bold">3</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold">MCP Server Containers</p>
+                      <p className="text-sm text-muted-foreground">
+                        Docker containers running MCP servers (filesystem,
+                        binary-tools, etc.)
+                      </p>
+                      <code className="text-xs bg-background px-2 py-1 rounded mt-1 inline-block">
+                        Docker network: mcp-network
+                      </code>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center flex-shrink-0">
+                      <span className="text-primary font-bold">4</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold">AI Assistant</p>
+                      <p className="text-sm text-muted-foreground">
+                        AI chat discovers and uses tools from running MCP
+                        servers
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">
+                Available MCP Servers
+              </h3>
+              <div className="grid gap-4">
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Container className="h-5 w-5 text-primary" />
+                    <h4 className="font-semibold">Filesystem Server</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Provides file system operations for AI assistant
+                  </p>
+                  <div className="text-xs">
+                    <p className="font-semibold mb-1">Available Tools:</p>
+                    <ul className="space-y-1 ml-4">
+                      <li>
+                        <code className="bg-background px-1 rounded">
+                          read_file
+                        </code>{" "}
+                        - Read file contents
+                      </li>
+                      <li>
+                        <code className="bg-background px-1 rounded">
+                          write_file
+                        </code>{" "}
+                        - Write to files
+                      </li>
+                      <li>
+                        <code className="bg-background px-1 rounded">
+                          list_directory
+                        </code>{" "}
+                        - List directory contents
+                      </li>
+                      <li>
+                        <code className="bg-background px-1 rounded">
+                          search_files
+                        </code>{" "}
+                        - Search for files
+                      </li>
+                    </ul>
+                    <p className="mt-2">
+                      <strong>Image:</strong>{" "}
+                      <code className="bg-background px-1 rounded">
+                        mcp/filesystem:latest
+                      </code>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Container className="h-5 w-5 text-primary" />
+                    <h4 className="font-semibold">Binary Tools Server</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Binary analysis tools (hex conversion, entropy, etc.)
+                  </p>
+                  <div className="text-xs">
+                    <p className="font-semibold mb-1">Available Tools:</p>
+                    <ul className="space-y-1 ml-4">
+                      <li>
+                        <code className="bg-background px-1 rounded">
+                          hex_dump
+                        </code>{" "}
+                        - Generate hex dumps
+                      </li>
+                      <li>
+                        <code className="bg-background px-1 rounded">
+                          calculate_entropy
+                        </code>{" "}
+                        - Calculate Shannon entropy
+                      </li>
+                      <li>
+                        <code className="bg-background px-1 rounded">
+                          find_patterns
+                        </code>{" "}
+                        - Pattern matching
+                      </li>
+                      <li>
+                        <code className="bg-background px-1 rounded">
+                          checksum
+                        </code>{" "}
+                        - Calculate checksums
+                      </li>
+                    </ul>
+                    <p className="mt-2">
+                      <strong>Image:</strong>{" "}
+                      <code className="bg-background px-1 rounded">
+                        mcp/binary-tools:latest
+                      </code>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Setup Instructions</h3>
+              <ol className="space-y-4">
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    1
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">
+                      Build MCP Docker Manager
+                    </p>
+                    <div className="bg-background rounded p-3 font-mono text-xs">
+                      <code>
+                        cd mcp-docker-manager
+                        <br />
+                        make build-manager
+                      </code>
+                    </div>
+                  </div>
+                </li>
+
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    2
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">
+                      Build MCP Server Images
+                    </p>
+                    <div className="bg-background rounded p-3 font-mono text-xs">
+                      <code>
+                        make build-binary-tools
+                        <br />
+                        docker-compose up -d
+                      </code>
+                    </div>
+                  </div>
+                </li>
+
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    3
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">Start MCP Manager</p>
+                    <div className="bg-background rounded p-3 font-mono text-xs">
+                      <code>./bin/mcp-docker-manager</code>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Manager will run on port 8080
+                    </p>
+                  </div>
+                </li>
+
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    4
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">
+                      Start Backend with MCP Support
+                    </p>
+                    <div className="bg-background rounded p-3 font-mono text-xs">
+                      <code>
+                        cd backend
+                        <br />
+                        export MCP_MANAGER_URL=http://localhost:8080
+                        <br />
+                        go run main.go
+                      </code>
+                    </div>
+                  </div>
+                </li>
+
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    5
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">
+                      Access MCP Settings in UI
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Navigate to Settings → MCP Settings to manage servers and
+                      view available tools
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Using MCP Tools</h3>
+              <div className="space-y-4">
+                <div className="border-l-4 border-primary pl-4">
+                  <h4 className="font-semibold mb-2">In AI Chat</h4>
+                  <p className="text-sm text-muted-foreground">
+                    When MCP servers are running, their tools are automatically
+                    available to the AI assistant. Simply ask questions like:
+                  </p>
+                  <div className="bg-muted/50 rounded p-3 mt-2 text-sm">
+                    <p className="mb-1">
+                      "Can you read the file at /tmp/sample.bin and analyze it?"
+                    </p>
+                    <p className="mb-1">
+                      "Calculate the entropy of this binary section"
+                    </p>
+                    <p>"Search for files containing 'header' in their name"</p>
+                  </div>
+                </div>
+
+                <div className="border-l-4 border-blue-500 pl-4">
+                  <h4 className="font-semibold mb-2">Via API</h4>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Call MCP tools directly through the REST API:
+                  </p>
+                  <div className="bg-background rounded p-3 font-mono text-xs">
+                    <pre className="overflow-x-auto">{`POST /mcp/docker/servers/filesystem/call
+{
+  "tool": "read_file",
+  "arguments": {
+    "path": "/path/to/file"
+  }
+}`}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+              <h4 className="font-semibold mb-2 flex items-center gap-2">
+                <Lightbulb className="h-5 w-5 text-blue-500" />
+                MCP Best Practices
+              </h4>
+              <ul className="space-y-2 text-sm ml-4">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 dark:text-blue-400 mt-1">
+                    •
+                  </span>
+                  <span>
+                    Start only the MCP servers you need to reduce resource usage
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 dark:text-blue-400 mt-1">
+                    •
+                  </span>
+                  <span>
+                    Check server health regularly via the MCP Settings page
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 dark:text-blue-400 mt-1">
+                    •
+                  </span>
+                  <span>
+                    Use tool approval system to control which tools the AI can
+                    execute
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 dark:text-blue-400 mt-1">
+                    •
+                  </span>
+                  <span>
+                    Create custom MCP servers by following the MCP specification
+                    and adding to docker-compose.yml
+                  </span>
+                </li>
+              </ul>
             </div>
           </div>
         </div>

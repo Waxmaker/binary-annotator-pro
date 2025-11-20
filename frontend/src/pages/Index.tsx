@@ -21,6 +21,7 @@ import { ECGInspector } from "@/components/ECGInspector";
 import { AdvancedVisualizations } from "@/components/AdvancedVisualizations";
 import { ComparisonPanel } from "@/components/ComparisonPanel";
 import { CompressionDetection } from "@/components/CompressionDetection";
+import { DecompressedFilesPanel } from "@/components/DecompressedFilesPanel";
 import { useHexSelection } from "@/hooks/useHexSelection";
 import { useYamlConfig } from "@/hooks/useYamlConfig";
 import {
@@ -277,6 +278,44 @@ const Index = () => {
       }
     },
     [currentFile],
+  );
+
+  const handleDecompressedFileSelect = useCallback(
+    async (fileId: number, fileName: string) => {
+      const loadingToast = toast.loading(`Loading ${fileName}...`);
+      setIsLoadingBuffer(true);
+
+      try {
+        // Fetch decompressed file data
+        const response = await fetch(`${API_BASE_URL}/decompressed/${fileId}/data`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch decompressed file: ${response.statusText}`);
+        }
+
+        const blob = await response.blob();
+        const buffer = await blob.arrayBuffer();
+
+        // Update state to display in hex viewer
+        setCurrentFile(fileName);
+        setCurrentBuffer(buffer);
+        setSamplingInfo({
+          isSampled: false,
+          originalSize: buffer.byteLength,
+          sampleSize: buffer.byteLength,
+          strategy: "full",
+        });
+
+        toast.success(`Loaded ${fileName} (${(buffer.byteLength / 1024).toFixed(1)} KB)`, {
+          id: loadingToast,
+        });
+      } catch (err) {
+        console.error("Failed to load decompressed file:", err);
+        toast.error(`Failed to load ${fileName}`, { id: loadingToast });
+      } finally {
+        setIsLoadingBuffer(false);
+      }
+    },
+    [],
   );
 
   const handleByteClick = useCallback(
@@ -537,16 +576,26 @@ const Index = () => {
                     : "hidden"
                 }
               >
-                <FilePanel
-                  files={files}
-                  currentFile={currentFile}
-                  onFileSelect={setCurrentFile}
-                  onFileAdd={handleFileAdd}
-                  onFileRemove={handleFileRemove}
-                  onFileRename={handleFileRename}
-                  isLoading={isLoadingFiles}
-                  isDeleting={isDeletingFile}
-                />
+                <ResizablePanelGroup direction="vertical" className="h-full">
+                  <ResizablePanel defaultSize={60} minSize={30}>
+                    <FilePanel
+                      files={files}
+                      currentFile={currentFile}
+                      onFileSelect={setCurrentFile}
+                      onFileAdd={handleFileAdd}
+                      onFileRemove={handleFileRemove}
+                      onFileRename={handleFileRename}
+                      isLoading={isLoadingFiles}
+                      isDeleting={isDeletingFile}
+                    />
+                  </ResizablePanel>
+                  <ResizableHandle />
+                  <ResizablePanel defaultSize={40} minSize={20}>
+                    <DecompressedFilesPanel
+                      onFileSelect={handleDecompressedFileSelect}
+                    />
+                  </ResizablePanel>
+                </ResizablePanelGroup>
               </TabsContent>
               <TabsContent
                 value="yaml"

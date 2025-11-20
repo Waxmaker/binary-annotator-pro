@@ -39,6 +39,10 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.POST("/analysis/compression/result/:resultId/add-to-files", h.AddDecompressedToFiles)
 	e.DELETE("/analysis/compression/:analysisId", h.DeleteCompressionAnalysis)
 
+	// Decompressed files management
+	e.GET("/decompressed/list", h.ListDecompressedFiles)
+	e.GET("/decompressed/:id/data", h.GetDecompressedFileData)
+
 	// Delete
 	e.DELETE("/delete/binary/:name", h.DeleteBinaryFile)
 	e.DELETE("/delete/yaml/:name", h.DeleteYamlConfig)
