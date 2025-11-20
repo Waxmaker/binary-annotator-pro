@@ -6,6 +6,7 @@ import { EntropyGraph } from "./EntropyGraph";
 import { BitmapView } from "./BitmapView";
 import { TrigramVisualization } from "./TrigramVisualization";
 import { HighlightRange } from "@/utils/colorUtils";
+import { SamplingInfo, formatSamplingInfo } from "@/utils/fileSampling";
 import {
   BarChart3,
   TrendingUp,
@@ -33,6 +34,8 @@ import {
 interface AdvancedVisualizationsProps {
   buffer: ArrayBuffer | null;
   highlights: HighlightRange[];
+  samplingInfo?: SamplingInfo | null;
+  fileName?: string | null;
 }
 
 type VisualizationType = "histogram" | "entropy" | "bitmap" | "trigrams";
@@ -51,6 +54,8 @@ interface VisualizationCard {
 export function AdvancedVisualizations({
   buffer,
   highlights,
+  samplingInfo,
+  fileName,
 }: AdvancedVisualizationsProps) {
   const [expandedCards, setExpandedCards] = useState<Set<VisualizationType>>(
     new Set(["histogram"])
@@ -112,7 +117,7 @@ export function AdvancedVisualizations({
       description: "3D visualization of three-byte sequences with multiple coordinate systems",
       whatIsIt: "Maps 3-byte sequences to 3D space (x, y, z coordinates) showing file structure in Cartesian, Cylindrical, or Spherical views",
       whyUseful: "Reveals complex patterns invisible in 2D. Color gradient (yellow→blue) shows data distribution from file start to end. Different shapes expose different structural patterns in binary files, compressed data, and executables.",
-      component: <TrigramVisualization buffer={buffer} />,
+      component: <TrigramVisualization buffer={buffer} fileName={fileName} />,
     },
   ];
 
@@ -183,6 +188,19 @@ export function AdvancedVisualizations({
           </div>
         </div>
       </div>
+
+      {/* Sampling Info Banner */}
+      {samplingInfo && samplingInfo.isSampled && (
+        <div className="px-6 py-3 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800">
+          <div className="flex items-center gap-2 text-sm">
+            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <p className="text-blue-800 dark:text-blue-200">
+              <strong>Sampled Analysis:</strong> {formatSamplingInfo(samplingInfo)}
+              {" "}(first 10MB + middle 10MB + last 10MB)
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Visualization Cards */}
       <div className="flex-1 overflow-auto p-6 space-y-4">

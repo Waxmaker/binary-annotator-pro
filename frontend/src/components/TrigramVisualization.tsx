@@ -6,7 +6,8 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 interface TrigramVisualizationProps {
-  buffer: ArrayBuffer | null;
+  buffer?: ArrayBuffer | null; // Not used anymore, kept for compatibility
+  fileName?: string | null;
 }
 
 type ShapeMode = "cartesian" | "cylindrical" | "spherical";
@@ -18,39 +19,25 @@ interface TrigramData {
   position: number; // 0-1, position in file
 }
 
-function calculateTrigrams(buffer: ArrayBuffer, maxSamples: number = 50000): TrigramData[] {
-  const view = new Uint8Array(buffer);
-  const trigrams: TrigramData[] = [];
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-  // Calculate step size for sampling if file is large
-  const step = Math.max(1, Math.floor((view.length - 2) / maxSamples));
-
-  for (let i = 0; i < view.length - 2; i += step) {
-    trigrams.push({
-      x: view[i],
-      y: view[i + 1],
-      z: view[i + 2],
-      position: i / view.length, // Normalized position (0-1)
-    });
+// Fetch trigrams from backend API
+async function fetchTrigrams(fileName: string, maxSamples: number = 50000): Promise<TrigramData[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/analysis/trigrams/${encodeURIComponent(fileName)}?max_samples=${maxSamples}`);
+    if (!response.ok) {
+      console.error("Failed to fetch trigrams:", response.statusText);
+      return [];
+    }
+    const data = await response.json();
+    return data.trigrams || [];
+  } catch (error) {
+    console.error("Error fetching trigrams:", error);
+    return [];
   }
-
-  return trigrams;
 }
 
-function cartesianToSpherical(x: number, y: number, z: number): [number, number, number] {
-  const r = Math.sqrt(x * x + y * y + z * z);
-  const theta = Math.atan2(y, x);
-  const phi = Math.acos(z / (r || 1));
-  return [r, theta, phi];
-}
-
-function cartesianToCylindrical(x: number, y: number, z: number): [number, number, number] {
-  const r = Math.sqrt(x * x + y * y);
-  const theta = Math.atan2(y, x);
-  return [r, theta, z];
-}
-
-export function TrigramVisualization({ buffer }: TrigramVisualizationProps) {
+export function TrigramVisualization({ buffer, fileName }: TrigramVisualizationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -62,11 +49,22 @@ export function TrigramVisualization({ buffer }: TrigramVisualizationProps) {
   const { theme, systemTheme } = useTheme();
   const [shapeMode, setShapeMode] = useState<ShapeMode>("cartesian");
   const [isRotating, setIsRotating] = useState(true);
+  const [trigrams, setTrigrams] = useState<TrigramData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const trigrams = useMemo(() => {
-    if (!buffer) return [];
-    return calculateTrigrams(buffer);
-  }, [buffer]);
+  // Fetch trigrams from backend when fileName changes
+  useEffect(() => {
+    if (!fileName) {
+      setTrigrams([]);
+      return;
+    }
+
+    setIsLoading(true);
+    fetchTrigrams(fileName).then((data) => {
+      setTrigrams(data);
+      setIsLoading(false);
+    });
+  }, [fileName]);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -85,9 +83,10 @@ export function TrigramVisualization({ buffer }: TrigramVisualizationProps) {
     scene.background = new THREE.Color(isDark ? 0x0a0a0a : 0xffffff);
     sceneRef.current = scene;
 
-    // Camera
+    // Camera - adjust based on data density
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 2000);
-    camera.position.set(300, 300, 300);
+    // Position camera further back for better initial view
+    camera.position.set(400, 400, 400);
     cameraRef.current = camera;
 
     // Renderer
@@ -111,6 +110,19 @@ export function TrigramVisualization({ buffer }: TrigramVisualizationProps) {
     // Axes helper
     const axesHelper = new THREE.AxesHelper(300);
     scene.add(axesHelper);
+
+    // Add bounding box to show data extent
+    const boxGeometry = new THREE.BoxGeometry(256, 256, 256);
+    const boxEdges = new THREE.EdgesGeometry(boxGeometry);
+    const boxLine = new THREE.LineSegments(
+      boxEdges,
+      new THREE.LineBasicMaterial({
+        color: isDark ? 0x666666 : 0x999999,
+        transparent: true,
+        opacity: 0.3
+      })
+    );
+    scene.add(boxLine);
 
     // Animation loop
     let animationId: number;
@@ -214,13 +226,16 @@ export function TrigramVisualization({ buffer }: TrigramVisualizationProps) {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
-    // Material
+    // Material - larger points for better visibility
+    // Adaptive size based on number of points
+    const pointSize = trigrams.length < 10000 ? 6 : trigrams.length < 30000 ? 4 : 3;
     const material = new THREE.PointsMaterial({
-      size: 2,
+      size: pointSize,
       vertexColors: true,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.8,
       sizeAttenuation: true,
+      blending: THREE.AdditiveBlending, // Makes points glow/stand out more
     });
 
     // Points
@@ -229,10 +244,18 @@ export function TrigramVisualization({ buffer }: TrigramVisualizationProps) {
     scene.add(points);
   }, [trigrams, shapeMode]);
 
-  if (!buffer) {
+  if (!fileName) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
         No file loaded
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        Loading trigrams...
       </div>
     );
   }

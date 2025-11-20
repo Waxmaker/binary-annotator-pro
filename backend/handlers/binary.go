@@ -3,6 +3,7 @@ package handlers
 import (
 	"binary-annotator-pro/models"
 	"fmt"
+	"math"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -79,5 +80,79 @@ func (h *Handler) RenameBinaryFile(c echo.Context) error {
 		"message":  "renamed",
 		"old_name": oldName,
 		"new_name": req.NewName,
+	})
+}
+
+// Trigram represents a 3-byte sequence with position
+type Trigram struct {
+	X        uint8   `json:"x"`
+	Y        uint8   `json:"y"`
+	Z        uint8   `json:"z"`
+	Position float64 `json:"position"` // 0.0 to 1.0, normalized position in file
+}
+
+// TrigramResponse is the JSON response for trigram analysis
+type TrigramResponse struct {
+	Trigrams []Trigram `json:"trigrams"`
+	Total    int       `json:"total"`
+	Sampled  bool      `json:"sampled"`
+}
+
+// GetBinaryTrigrams calculates trigrams for a binary file
+func (h *Handler) GetBinaryTrigrams(c echo.Context) error {
+	fileName := c.Param("name")
+	if fileName == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "missing file name",
+		})
+	}
+
+	// Get max samples from query param (default 50000)
+	maxSamples := 50000
+	if ms := c.QueryParam("max_samples"); ms != "" {
+		fmt.Sscanf(ms, "%d", &maxSamples)
+	}
+
+	// Load file from DB
+	var file models.File
+	if err := h.db.GormDB.Where("name = ?", fileName).First(&file).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "file not found",
+		})
+	}
+
+	data := file.Data
+	dataLen := len(data)
+
+	if dataLen < 3 {
+		return c.JSON(http.StatusOK, TrigramResponse{
+			Trigrams: []Trigram{},
+			Total:    0,
+			Sampled:  false,
+		})
+	}
+
+	// Calculate step size for sampling
+	step := int(math.Max(1, math.Floor(float64(dataLen-2)/float64(maxSamples))))
+	sampled := step > 1
+
+	trigrams := make([]Trigram, 0, maxSamples)
+
+	for i := 0; i < dataLen-2; i += step {
+		trigrams = append(trigrams, Trigram{
+			X:        data[i],
+			Y:        data[i+1],
+			Z:        data[i+2],
+			Position: float64(i) / float64(dataLen),
+		})
+	}
+
+	fmt.Printf("Generated %d trigrams for file %s (sampled: %v, step: %d)\n",
+		len(trigrams), fileName, sampled, step)
+
+	return c.JSON(http.StatusOK, TrigramResponse{
+		Trigrams: trigrams,
+		Total:    len(trigrams),
+		Sampled:  sampled,
 	})
 }

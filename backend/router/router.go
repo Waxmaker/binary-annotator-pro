@@ -27,6 +27,9 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.GET("/get/binary/:fileName", h.GetBinaryByName)
 	e.GET("/get/yaml/:configName", h.GetYamlByName)
 
+	// Binary analysis
+	e.GET("/analysis/trigrams/:name", h.GetBinaryTrigrams)
+
 	// Delete
 	e.DELETE("/delete/binary/:name", h.DeleteBinaryFile)
 	e.DELETE("/delete/yaml/:name", h.DeleteYamlConfig)
@@ -60,7 +63,13 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	searchHandler := handlers.NewSearchHandler(db)
 	e.POST("/search", searchHandler.Search)
 
-	// MCP
-	mcpHandler := handlers.NewMCPHandler()
-	e.GET("/mcp/status", mcpHandler.GetMCPStatus)
+	// MCP Docker Manager
+	mcpDockerHandler := handlers.NewMCPDockerHandler()
+	e.GET("/mcp/docker/health", mcpDockerHandler.GetMCPManagerHealth)
+	e.GET("/mcp/docker/stats", mcpDockerHandler.GetMCPDockerStats)
+	e.GET("/mcp/docker/servers", mcpDockerHandler.ListMCPServers)
+	e.POST("/mcp/docker/servers/:name/start", mcpDockerHandler.StartMCPServer)
+	e.POST("/mcp/docker/servers/:name/stop", mcpDockerHandler.StopMCPServer)
+	e.POST("/mcp/docker/servers/:name/toggle", mcpDockerHandler.ToggleMCPDockerServer)
+	e.POST("/mcp/docker/servers/:name/call", mcpDockerHandler.CallMCPTool)
 }

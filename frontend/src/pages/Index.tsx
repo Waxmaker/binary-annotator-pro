@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { createSampledBuffer, SamplingInfo } from "@/utils/fileSampling";
 
 import {
   ResizablePanelGroup,
@@ -79,6 +80,7 @@ const Index = () => {
 
   const [currentBuffer, setCurrentBuffer] = useState<ArrayBuffer | null>(null);
   const [isLoadingBuffer, setIsLoadingBuffer] = useState(false);
+  const [samplingInfo, setSamplingInfo] = useState<SamplingInfo | null>(null);
 
   // Save current file to localStorage whenever it changes
   useEffect(() => {
@@ -90,10 +92,11 @@ const Index = () => {
   }, [currentFile]);
 
   // Load buffer only when file is selected
-  // For large files (>50MB), skip loading buffer and use chunk-based loading instead
+  // For large files (>50MB), use intelligent sampling for analysis
   useEffect(() => {
     if (!currentFile) {
       setCurrentBuffer(null);
+      setSamplingInfo(null);
       return;
     }
 
@@ -103,42 +106,73 @@ const Index = () => {
     // Threshold for chunk-based loading: 50MB
     const CHUNK_THRESHOLD = 50 * 1024 * 1024;
 
-    // For large files, skip buffer loading - use chunks instead
-    if (file.size > CHUNK_THRESHOLD) {
-      console.log(
-        `File ${file.name} is ${(file.size / (1024 * 1024)).toFixed(1)} MB - using chunk-based loading`,
-      );
-      setCurrentBuffer(null);
-      setIsLoadingBuffer(false);
-      return;
-    }
-
     // If buffer already loaded, use it
     if (file.buffer) {
       setCurrentBuffer(file.buffer);
+      setSamplingInfo({
+        isSampled: false,
+        originalSize: file.size,
+        sampleSize: file.buffer.byteLength,
+        strategy: "full",
+      });
       return;
     }
 
-    // Load buffer on demand for small files
+    // Load buffer (with sampling for large files)
     const loadBuffer = async () => {
       setIsLoadingBuffer(true);
-      const loadingToast = toast.loading(`Loading ${file.name}...`);
+
+      const isLargeFile = file.size > CHUNK_THRESHOLD;
+      const loadingMessage = isLargeFile
+        ? `Sampling ${file.name} for analysis...`
+        : `Loading ${file.name}...`;
+      const loadingToast = toast.loading(loadingMessage);
 
       try {
-        const buffer = await fetchBinaryFile(file.name);
+        let buffer: ArrayBuffer;
+        let info: SamplingInfo;
+
+        if (isLargeFile) {
+          // For large files, create intelligent sample
+          console.log(
+            `File ${file.name} is ${(file.size / (1024 * 1024)).toFixed(1)} MB - using sampled analysis`,
+          );
+
+          // Fetch the file blob first
+          const response = await fetch(`/api/binaries/${encodeURIComponent(file.name)}`);
+          if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
+          const blob = await response.blob();
+
+          // Create sampled buffer
+          const sampledData = await createSampledBuffer(new File([blob], file.name));
+          buffer = sampledData.buffer;
+          info = sampledData.info;
+        } else {
+          // For small files, load normally
+          buffer = await fetchBinaryFile(file.name);
+          info = {
+            isSampled: false,
+            originalSize: file.size,
+            sampleSize: buffer.byteLength,
+            strategy: "full",
+          };
+        }
 
         // Store in file object for caching
         file.buffer = buffer;
         setCurrentBuffer(buffer);
+        setSamplingInfo(info);
 
-        toast.success(
-          `Loaded ${file.name} (${(buffer.byteLength / (1024 * 1024)).toFixed(1)} MB)`,
-          { id: loadingToast },
-        );
+        const successMessage = info.isSampled
+          ? `Sampled ${(info.sampleSize / (1024 * 1024)).toFixed(1)} MB from ${(info.originalSize / (1024 * 1024)).toFixed(1)} MB file`
+          : `Loaded ${file.name} (${(buffer.byteLength / (1024 * 1024)).toFixed(1)} MB)`;
+
+        toast.success(successMessage, { id: loadingToast });
       } catch (err) {
         console.error("Failed to load file:", err);
         toast.error(`Failed to load ${file.name}`, { id: loadingToast });
         setCurrentBuffer(null);
+        setSamplingInfo(null);
       } finally {
         setIsLoadingBuffer(false);
       }
@@ -560,6 +594,8 @@ const Index = () => {
                 <AdvancedVisualizations
                   buffer={currentBuffer}
                   highlights={highlights}
+                  samplingInfo={samplingInfo}
+                  fileName={currentFile}
                 />
               </TabsContent>
               <TabsContent
