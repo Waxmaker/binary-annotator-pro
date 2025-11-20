@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"binary-annotator-pro/models"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
@@ -53,10 +56,8 @@ func (h *Handler) StartCompressionAnalysis(c echo.Context) error {
 		})
 	}
 
-	// TODO: Trigger Python compression detector (async)
-	// For now, we'll just mark as pending
-	// In the future:
-	// go h.runCompressionDetector(analysis.ID, file)
+	// Trigger Python compression detector asynchronously
+	go h.runCompressionDetector(analysis.ID, file)
 
 	fmt.Printf("Created compression analysis %d for file %s\n", analysis.ID, file.Name)
 
@@ -65,7 +66,7 @@ func (h *Handler) StartCompressionAnalysis(c echo.Context) error {
 		"file_id":     fileID,
 		"file_name":   file.Name,
 		"status":      "pending",
-		"message":     "Compression analysis queued (Python detector not yet implemented)",
+		"message":     "Compression analysis started",
 	})
 }
 
@@ -208,16 +209,133 @@ func (h *Handler) DeleteCompressionAnalysis(c echo.Context) error {
 	})
 }
 
-// TODO: This will be called when Python detector is integrated
-// func (h *Handler) runCompressionDetector(analysisID uint, file models.File) {
-// 	// Update status to running
-// 	h.db.GormDB.Model(&models.CompressionAnalysis{}).Where("id = ?", analysisID).
-// 		Update("status", "running")
-//
-// 	// Call Python script
-// 	// python3 backend/compression_detector/detector.py --file-id <file.ID>
-//
-// 	// Parse results and save to database
-//
-// 	// Update status to completed or failed
-// }
+// Python analysis result structures
+type PythonDecompressionResult struct {
+	Method               string  `json:"method"`
+	Success              bool    `json:"success"`
+	DecompressedSize     int64   `json:"decompressed_size"`
+	OriginalSize         int64   `json:"original_size"`
+	CompressionRatio     float64 `json:"compression_ratio"`
+	Confidence           float64 `json:"confidence"`
+	EntropyOriginal      float64 `json:"entropy_original"`
+	EntropyDecompressed  float64 `json:"entropy_decompressed"`
+	ChecksumValid        bool    `json:"checksum_valid"`
+	ValidationMsg        string  `json:"validation_msg"`
+	Error                *string `json:"error"`
+}
+
+type PythonAnalysisReport struct {
+	FilePath      string                       `json:"file_path"`
+	FileSize      int64                        `json:"file_size"`
+	TotalTests    int                          `json:"total_tests"`
+	SuccessCount  int                          `json:"success_count"`
+	FailedCount   int                          `json:"failed_count"`
+	BestMethod    *string                      `json:"best_method"`
+	BestRatio     float64                      `json:"best_ratio"`
+	BestConfidence float64                     `json:"best_confidence"`
+	Results       []PythonDecompressionResult  `json:"results"`
+}
+
+// runCompressionDetector executes Python compression detector asynchronously
+func (h *Handler) runCompressionDetector(analysisID uint, file models.File) {
+	// Update status to running
+	h.db.GormDB.Model(&models.CompressionAnalysis{}).Where("id = ?", analysisID).
+		Updates(map[string]interface{}{
+			"status": "running",
+		})
+
+	// Create temporary file for analysis
+	tmpFile := fmt.Sprintf("/tmp/binary_analysis_%d_%d.bin", file.ID, analysisID)
+	err := os.WriteFile(tmpFile, file.Data, 0644)
+	if err != nil {
+		h.updateAnalysisError(analysisID, fmt.Sprintf("Failed to create temp file: %v", err))
+		return
+	}
+	defer os.Remove(tmpFile)
+
+	// Execute Python script
+	scriptPath := "../test/compression_detector.py"
+	cmd := exec.Command("python3", scriptPath, tmpFile, "--json")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		h.updateAnalysisError(analysisID, fmt.Sprintf("Python script failed: %v\nOutput: %s", err, string(output)))
+		return
+	}
+
+	// Parse JSON results
+	var report PythonAnalysisReport
+	if err := json.Unmarshal(output, &report); err != nil {
+		h.updateAnalysisError(analysisID, fmt.Sprintf("Failed to parse JSON: %v\nOutput: %s", err, string(output)))
+		return
+	}
+
+	// Save results to database
+	if err := h.saveCompressionResults(analysisID, file.ID, &report); err != nil {
+		h.updateAnalysisError(analysisID, fmt.Sprintf("Failed to save results: %v", err))
+		return
+	}
+
+	// Update analysis status to completed
+	updates := map[string]interface{}{
+		"status":       "completed",
+		"total_tests":  report.TotalTests,
+		"success_count": report.SuccessCount,
+		"failed_count": report.FailedCount,
+	}
+
+	if report.BestMethod != nil {
+		updates["best_method"] = *report.BestMethod
+		updates["best_ratio"] = report.BestRatio
+		updates["best_confidence"] = report.BestConfidence
+	}
+
+	h.db.GormDB.Model(&models.CompressionAnalysis{}).Where("id = ?", analysisID).
+		Updates(updates)
+
+	fmt.Printf("Compression analysis %d completed successfully\n", analysisID)
+}
+
+// updateAnalysisError updates analysis with error status
+func (h *Handler) updateAnalysisError(analysisID uint, errorMsg string) {
+	h.db.GormDB.Model(&models.CompressionAnalysis{}).Where("id = ?", analysisID).
+		Updates(map[string]interface{}{
+			"status": "failed",
+			"error":  errorMsg,
+		})
+	fmt.Printf("Compression analysis %d failed: %s\n", analysisID, errorMsg)
+}
+
+// saveCompressionResults saves decompression results to database
+func (h *Handler) saveCompressionResults(analysisID uint, fileID uint, report *PythonAnalysisReport) error {
+	// Save each result
+	for _, pyResult := range report.Results {
+		result := models.CompressionResult{
+			AnalysisID:          analysisID,
+			Method:              pyResult.Method,
+			Success:             pyResult.Success,
+			CompressionRatio:    pyResult.CompressionRatio,
+			Confidence:          pyResult.Confidence,
+			DecompressedSize:    pyResult.DecompressedSize,
+			OriginalSize:        pyResult.OriginalSize,
+			EntropyOriginal:     pyResult.EntropyOriginal,
+			EntropyDecompressed: pyResult.EntropyDecompressed,
+			ChecksumValid:       pyResult.ChecksumValid,
+			ValidationMsg:       pyResult.ValidationMsg,
+		}
+
+		if pyResult.Error != nil {
+			result.Error = *pyResult.Error
+		}
+
+		if err := h.db.GormDB.Create(&result).Error; err != nil {
+			return fmt.Errorf("failed to save result for %s: %w", pyResult.Method, err)
+		}
+
+		// TODO: Save decompressed file if needed
+		// For now, we skip saving the actual decompressed data to save space
+		// Users can re-run the analysis if they need the decompressed files
+	}
+
+	return nil
+}
