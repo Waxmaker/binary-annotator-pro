@@ -1,5 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { ArrowUp } from "lucide-react";
 import {
   compareBinaryBuffers,
   DiffChunk,
@@ -13,18 +15,77 @@ interface BinaryDiffViewerProps {
   buffer2: ArrayBuffer | null;
   fileName1?: string;
   fileName2?: string;
+  fileSize1?: number;
+  fileSize2?: number;
 }
+
+const SCROLL_POSITION_KEY = "binaryDiffViewer_scrollPosition";
 
 export function BinaryDiffViewer({
   buffer1,
   buffer2,
   fileName1 = "File 1",
   fileName2 = "File 2",
+  fileSize1,
+  fileSize2,
 }: BinaryDiffViewerProps) {
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [isRestoringScroll, setIsRestoringScroll] = useState(false);
+
   const diffChunks = useMemo(() => {
     if (!buffer1 || !buffer2) return [];
     return compareBinaryBuffers(buffer1, buffer2, 16);
   }, [buffer1, buffer2]);
+
+  // Save scroll position to localStorage
+  const saveScrollPosition = () => {
+    if (!scrollViewportRef.current || isRestoringScroll) return;
+    const scrollTop = scrollViewportRef.current.scrollTop;
+    localStorage.setItem(SCROLL_POSITION_KEY, scrollTop.toString());
+  };
+
+  // Restore scroll position from localStorage
+  useEffect(() => {
+    if (!scrollViewportRef.current || diffChunks.length === 0) return;
+
+    const savedPosition = localStorage.getItem(SCROLL_POSITION_KEY);
+    if (savedPosition) {
+      setIsRestoringScroll(true);
+      const scrollTop = parseInt(savedPosition, 10);
+
+      // Delay to ensure DOM is ready
+      setTimeout(() => {
+        if (scrollViewportRef.current) {
+          scrollViewportRef.current.scrollTop = scrollTop;
+        }
+        setIsRestoringScroll(false);
+      }, 100);
+    }
+  }, [diffChunks]);
+
+  // Handle scroll events
+  useEffect(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      saveScrollPosition();
+      setShowBackToTop(viewport.scrollTop > 300);
+    };
+
+    viewport.addEventListener("scroll", handleScroll);
+    return () => viewport.removeEventListener("scroll", handleScroll);
+  }, [isRestoringScroll]);
+
+  const handleBackToTop = () => {
+    if (scrollViewportRef.current) {
+      scrollViewportRef.current.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  };
 
   if (!buffer1 || !buffer2) {
     return (
@@ -35,12 +96,12 @@ export function BinaryDiffViewer({
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
       <div className="p-4 border-b border-panel-border bg-panel-header">
         <h3 className="text-sm font-semibold">Side-by-Side Binary Diff</h3>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1" viewportRef={scrollViewportRef}>
         <div className="p-4">
           {/* Header */}
           <div className="grid grid-cols-[80px_1fr_1fr] gap-4 mb-2 font-semibold text-xs border-b pb-2">
@@ -55,6 +116,18 @@ export function BinaryDiffViewer({
           ))}
         </div>
       </ScrollArea>
+
+      {/* Back to Top Button */}
+      {showBackToTop && (
+        <Button
+          onClick={handleBackToTop}
+          className="fixed bottom-8 right-8 rounded-full w-12 h-12 p-0 shadow-lg z-50"
+          size="icon"
+          title="Back to top"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </Button>
+      )}
 
       {/* Legend */}
       <div className="p-4 border-t border-panel-border bg-panel-header">

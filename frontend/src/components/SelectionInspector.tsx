@@ -1,8 +1,8 @@
-import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { formatAddress } from '@/utils/binaryUtils';
-import { convertBytes, formatHexBytes, formatAscii } from '@/utils/conversions';
-import { Info } from 'lucide-react';
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { formatAddress } from "@/utils/binaryUtils";
+import { convertBytes, formatHexBytes, formatAscii } from "@/utils/conversions";
+import { Info } from "lucide-react";
 
 interface SelectionInspectorProps {
   selection: {
@@ -121,7 +121,9 @@ export function SelectionInspector({ selection }: SelectionInspectorProps) {
 
         {/* Signed Integers */}
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-foreground">Signed Integers</h3>
+          <h3 className="text-xs font-semibold text-foreground">
+            Signed Integers
+          </h3>
           <Card className="p-3 space-y-2 text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Int8:</span>
@@ -157,25 +159,35 @@ export function SelectionInspector({ selection }: SelectionInspectorProps) {
         {/* Floating Point */}
         {size >= 4 && (
           <div className="space-y-2">
-            <h3 className="text-xs font-semibold text-foreground">Floating Point</h3>
+            <h3 className="text-xs font-semibold text-foreground">
+              Floating Point
+            </h3>
             <Card className="p-3 space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Float32 (LE):</span>
-                <span className="font-mono">{conversions.float32LE.toFixed(6)}</span>
+                <span className="font-mono">
+                  {conversions.float32LE.toFixed(6)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Float32 (BE):</span>
-                <span className="font-mono">{conversions.float32BE.toFixed(6)}</span>
+                <span className="font-mono">
+                  {conversions.float32BE.toFixed(6)}
+                </span>
               </div>
               {size >= 8 && (
                 <>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Float64 (LE):</span>
-                    <span className="font-mono">{conversions.float64LE.toFixed(6)}</span>
+                    <span className="font-mono">
+                      {conversions.float64LE.toFixed(6)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Float64 (BE):</span>
-                    <span className="font-mono">{conversions.float64BE.toFixed(6)}</span>
+                    <span className="font-mono">
+                      {conversions.float64BE.toFixed(6)}
+                    </span>
                   </div>
                 </>
               )}
@@ -188,7 +200,7 @@ export function SelectionInspector({ selection }: SelectionInspectorProps) {
           <h3 className="text-xs font-semibold text-foreground">UTF-8 Text</h3>
           <Card className="p-3 bg-hex-background">
             <p className="text-xs font-mono text-hex-text break-all">
-              {conversions.utf8 || '(not valid UTF-8)'}
+              {conversions.utf8 || "(not valid UTF-8)"}
             </p>
           </Card>
         </div>

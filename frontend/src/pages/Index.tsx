@@ -61,7 +61,10 @@ const Index = () => {
   const [selectTab, setSelectTab] = useState<string>("files");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [files, setFiles] = useState<FileData[]>([]);
-  const [currentFile, setCurrentFile] = useState<string | null>(null);
+  const [currentFile, setCurrentFile] = useState<string | null>(() => {
+    // Load from localStorage on mount
+    return localStorage.getItem('selectedBinaryFile');
+  });
   const [scrollToOffset, setScrollToOffset] = useState<number | null>(null);
   const [hoveredTag, setHoveredTag] = useState<string | null>(null);
   const [currentConfigName, setCurrentConfigName] = useState<
@@ -76,6 +79,15 @@ const Index = () => {
 
   const [currentBuffer, setCurrentBuffer] = useState<ArrayBuffer | null>(null);
   const [isLoadingBuffer, setIsLoadingBuffer] = useState(false);
+
+  // Save current file to localStorage whenever it changes
+  useEffect(() => {
+    if (currentFile) {
+      localStorage.setItem('selectedBinaryFile', currentFile);
+    } else {
+      localStorage.removeItem('selectedBinaryFile');
+    }
+  }, [currentFile]);
 
   // Load buffer only when file is selected
   // For large files (>50MB), skip loading buffer and use chunk-based loading instead
@@ -329,7 +341,16 @@ const Index = () => {
         setFiles(loaded);
 
         if (loaded.length > 0) {
-          setCurrentFile(loaded[0].name);
+          // Check if the previously selected file still exists
+          const savedFile = localStorage.getItem('selectedBinaryFile');
+          const fileExists = savedFile && loaded.some(f => f.name === savedFile);
+
+          if (fileExists) {
+            setCurrentFile(savedFile);
+          } else {
+            // If saved file doesn't exist, select the first one
+            setCurrentFile(loaded[0].name);
+          }
         }
 
         toast.success(

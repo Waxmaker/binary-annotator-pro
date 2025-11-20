@@ -1,15 +1,24 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { calculateEntropyGraph } from "@/utils/binaryAnalysis";
 import { useTheme } from "@/hooks/useTheme";
+import { formatAddress } from "@/utils/binaryUtils";
 
 interface EntropyGraphProps {
   buffer: ArrayBuffer | null;
   windowSize?: number;
 }
 
+interface CursorInfo {
+  x: number;
+  offset: number;
+  entropy: number;
+}
+
 export function EntropyGraph({ buffer, windowSize = 256 }: EntropyGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { theme, systemTheme } = useTheme();
+  const [cursorInfo, setCursorInfo] = useState<CursorInfo | null>(null);
 
   const entropyData = useMemo(() => {
     if (!buffer) return null;
@@ -138,6 +147,187 @@ export function EntropyGraph({ buffer, windowSize = 256 }: EntropyGraphProps) {
     ctx.restore();
   }, [entropyData, theme, systemTheme]);
 
+  // Draw cursor overlay
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !entropyData || !cursorInfo) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const padding = 50;
+
+    // Determine if we're in dark mode
+    const effectiveTheme = theme === "system" ? systemTheme : theme;
+    const isDark = effectiveTheme === "dark";
+
+    // Redraw everything first (this ensures clean state)
+    const bgColor = isDark ? "#0a0a0a" : "#ffffff";
+    const gridColor = isDark ? "#27272a" : "#f4f4f5";
+    const textColor = isDark ? "#a1a1aa" : "#52525b";
+    const axisColor = isDark ? "#52525b" : "#27272a";
+    const lineColor = isDark ? "#ef4444" : "#dc2626";
+    const fillColor = isDark ? "rgba(239, 68, 68, 0.15)" : "rgba(220, 38, 38, 0.1)";
+
+    // Clear canvas
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw grid
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 1;
+
+    // Horizontal grid lines
+    for (let i = 0; i <= 8; i++) {
+      const y = padding + ((height - 2 * padding) * (8 - i)) / 8;
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(width - padding, y);
+      ctx.stroke();
+
+      // Y-axis labels
+      ctx.fillStyle = textColor;
+      ctx.font = "11px monospace";
+      ctx.textAlign = "right";
+      ctx.fillText(i.toString(), padding - 8, y + 4);
+    }
+
+    // Vertical grid lines
+    const gridSteps = 10;
+    for (let i = 0; i <= gridSteps; i++) {
+      const x = padding + ((width - 2 * padding) * i) / gridSteps;
+      ctx.strokeStyle = gridColor;
+      ctx.beginPath();
+      ctx.moveTo(x, padding);
+      ctx.lineTo(x, height - padding);
+      ctx.stroke();
+    }
+
+    // Draw entropy line
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+
+    const xStep = (width - 2 * padding) / (entropyData.length - 1 || 1);
+
+    entropyData.forEach((entropy, i) => {
+      const x = padding + i * xStep;
+      const y = padding + ((height - 2 * padding) * (8 - entropy)) / 8;
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+
+    ctx.stroke();
+
+    // Fill area under curve
+    ctx.lineTo(width - padding, height - padding);
+    ctx.lineTo(padding, height - padding);
+    ctx.closePath();
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+
+    // Draw cursor line
+    ctx.strokeStyle = isDark ? "#60a5fa" : "#3b82f6";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(cursorInfo.x, padding);
+    ctx.lineTo(cursorInfo.x, height - padding);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw cursor point on line
+    const dataIndex = Math.round(((cursorInfo.x - padding) / (width - 2 * padding)) * (entropyData.length - 1));
+    if (dataIndex >= 0 && dataIndex < entropyData.length) {
+      const entropy = entropyData[dataIndex];
+      const pointY = padding + ((height - 2 * padding) * (8 - entropy)) / 8;
+
+      ctx.fillStyle = isDark ? "#60a5fa" : "#3b82f6";
+      ctx.beginPath();
+      ctx.arc(cursorInfo.x, pointY, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = bgColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Draw axes
+    ctx.strokeStyle = axisColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, height - padding);
+    ctx.lineTo(width - padding, height - padding);
+    ctx.stroke();
+
+    // Calculate statistics
+    const avgEntropy = entropyData.reduce((a, b) => a + b, 0) / entropyData.length;
+    const maxEntropy = Math.max(...entropyData);
+    const minEntropy = Math.min(...entropyData);
+
+    // Draw title and stats
+    ctx.fillStyle = textColor;
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("Entropy (bits)", 8, 15);
+
+    ctx.textAlign = "right";
+    ctx.fillText(`Avg: ${avgEntropy.toFixed(2)}`, width - 8, 15);
+    ctx.fillText(`Max: ${maxEntropy.toFixed(2)}`, width - 8, 28);
+    ctx.fillText(`Min: ${minEntropy.toFixed(2)}`, width - 8, 41);
+
+    // Draw axis labels
+    ctx.font = "10px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Position in file →", width / 2, height - 10);
+
+    ctx.save();
+    ctx.translate(15, height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("Entropy (0-8 bits) →", 0, 0);
+    ctx.restore();
+  }, [entropyData, theme, systemTheme, cursorInfo]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !entropyData || !buffer) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const mouseX = (e.clientX - rect.left) * scaleX;
+
+    const padding = 50;
+    const width = canvas.width;
+
+    // Check if mouse is within graph area
+    if (mouseX < padding || mouseX > width - padding) {
+      setCursorInfo(null);
+      return;
+    }
+
+    // Calculate offset in file
+    const relativeX = (mouseX - padding) / (width - 2 * padding);
+    const dataIndex = Math.round(relativeX * (entropyData.length - 1));
+
+    if (dataIndex >= 0 && dataIndex < entropyData.length) {
+      const offset = Math.floor((dataIndex / entropyData.length) * buffer.byteLength);
+      const entropy = entropyData[dataIndex];
+
+      setCursorInfo({ x: mouseX, offset, entropy });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setCursorInfo(null);
+  };
+
   if (!buffer) {
     return (
       <div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
@@ -148,8 +338,36 @@ export function EntropyGraph({ buffer, windowSize = 256 }: EntropyGraphProps) {
 
   return (
     <div className="p-6">
-      <div className="bg-muted/20 rounded-lg p-4 border">
-        <canvas ref={canvasRef} width={900} height={350} className="w-full h-auto" />
+      <div className="bg-muted/20 rounded-lg p-4 border relative" ref={containerRef}>
+        <canvas
+          ref={canvasRef}
+          width={900}
+          height={350}
+          className="w-full h-auto cursor-crosshair"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        />
+
+        {/* Cursor info tooltip */}
+        {cursorInfo && (
+          <div className="absolute top-2 left-2 bg-background/95 border border-primary/50 rounded-lg shadow-lg px-3 py-2 text-xs font-mono pointer-events-none z-10">
+            <div className="flex items-center gap-3">
+              <div>
+                <span className="text-muted-foreground">Offset:</span>
+                <span className="ml-2 text-primary font-semibold">
+                  {formatAddress(cursorInfo.offset)}
+                </span>
+              </div>
+              <div className="h-3 w-px bg-border" />
+              <div>
+                <span className="text-muted-foreground">Entropy:</span>
+                <span className="ml-2 text-primary font-semibold">
+                  {cursorInfo.entropy.toFixed(3)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-3 text-xs">

@@ -33,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { fetchBinaryList } from "@/lib/api";
 import { SettingsDialog } from "@/components/SettingsDialog";
+import { SettingsMcp } from "@/components/SettingsMcp";
 import { useAISettings } from "@/hooks/useAISettings";
 
 interface ChatMessage {
@@ -71,6 +72,7 @@ const Chat = () => {
   const { theme, setTheme } = useTheme();
   const userID = getUserID();
   const { settings: aiSettings, isConfigured } = useAISettings();
+  const { settingsMcp: mcpSettings } = useAISettings();
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
 
@@ -81,13 +83,17 @@ const Chat = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
   const [binaryFiles, setBinaryFiles] = useState<BinaryFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(() => {
+    // Load from localStorage on mount (shared with Index page)
+    return localStorage.getItem('selectedBinaryFile');
+  });
   const [mcpStatus, setMcpStatus] = useState<MCPStatus | null>(null);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsMcpOpen, setSettingsMcpOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -134,14 +140,30 @@ const Chat = () => {
     };
   }, [isResizing]);
 
+  // Save selected file to localStorage whenever it changes (shared with Index page)
+  useEffect(() => {
+    if (selectedFile) {
+      localStorage.setItem('selectedBinaryFile', selectedFile);
+    } else {
+      localStorage.removeItem('selectedBinaryFile');
+    }
+  }, [selectedFile]);
+
   // Load binary files
   useEffect(() => {
     const loadFiles = async () => {
       try {
         const list = await fetchBinaryList();
         setBinaryFiles(list);
-        if (list.length > 0 && !selectedFile) {
-          setSelectedFile(list[0].name);
+
+        if (list.length > 0) {
+          // Validate that the selected file from localStorage still exists
+          const fileExists = selectedFile && list.some(f => f.name === selectedFile);
+
+          if (!fileExists) {
+            // If saved file doesn't exist, select the first one
+            setSelectedFile(list[0].name);
+          }
         }
       } catch (err) {
         console.error("Failed to load binary files:", err);
@@ -513,7 +535,10 @@ const Chat = () => {
 
           {/* MCP Status */}
           {mcpStatus && mcpStatus.connected_servers > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-md">
+            <div
+              onClick={() => setSettingsMcpOpen(true)}
+              className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-md cursor-pointer"
+            >
               <div className="h-2 w-2 rounded-full bg-primary" />
               <span className="text-xs font-medium text-foreground">
                 MCP: {mcpStatus.connected_servers} server(s),{" "}
@@ -798,6 +823,11 @@ const Chat = () => {
 
       {/* Settings Dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsMcp
+        open={settingsMcpOpen}
+        onOpenChange={setSettingsMcpOpen}
+        MCPStatus={mcpStatus}
+      />
     </div>
   );
 };

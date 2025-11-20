@@ -13,7 +13,8 @@ import {
   Grid2x2,
   Info,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Maximize2
 } from "lucide-react";
 import {
   Tooltip,
@@ -21,6 +22,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface AdvancedVisualizationsProps {
   buffer: ArrayBuffer | null;
@@ -47,6 +55,7 @@ export function AdvancedVisualizations({
   const [expandedCards, setExpandedCards] = useState<Set<VisualizationType>>(
     new Set(["histogram"])
   );
+  const [bigViewOpen, setBigViewOpen] = useState<VisualizationType | null>(null);
 
   const toggleCard = (id: VisualizationType) => {
     setExpandedCards((prev) => {
@@ -183,12 +192,12 @@ export function AdvancedVisualizations({
           return (
             <Card key={viz.id} className="overflow-hidden border-2 transition-colors hover:border-primary/50">
               {/* Card Header */}
-              <div
-                className="p-4 bg-muted/30 cursor-pointer select-none hover:bg-muted/50 transition-colors"
-                onClick={() => toggleCard(viz.id)}
-              >
+              <div className="p-4 bg-muted/30">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1">
+                  <div
+                    className="flex items-start gap-3 flex-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+                    onClick={() => toggleCard(viz.id)}
+                  >
                     <div className="mt-0.5 p-2 rounded-lg bg-primary/10 text-primary">
                       {viz.icon}
                     </div>
@@ -220,17 +229,40 @@ export function AdvancedVisualizations({
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 shrink-0"
-                  >
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </Button>
+                  <div className="flex gap-1 shrink-0">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBigViewOpen(viz.id);
+                            }}
+                          >
+                            <Maximize2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Open in big view</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => toggleCard(viz.id)}
+                    >
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -244,6 +276,37 @@ export function AdvancedVisualizations({
           );
         })}
       </div>
+
+      {/* Big View Dialog */}
+      <Dialog open={bigViewOpen !== null} onOpenChange={(open) => !open && setBigViewOpen(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] h-[95vh] p-0">
+          {bigViewOpen && (() => {
+            const viz = visualizations.find(v => v.id === bigViewOpen);
+            if (!viz) return null;
+
+            return (
+              <>
+                <DialogHeader className="px-6 py-4 border-b">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      {viz.icon}
+                    </div>
+                    <div>
+                      <DialogTitle className="text-lg">{viz.title}</DialogTitle>
+                      <DialogDescription className="text-xs mt-1">
+                        {viz.description}
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </DialogHeader>
+                <div className="flex-1 overflow-auto p-6">
+                  {viz.component}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
