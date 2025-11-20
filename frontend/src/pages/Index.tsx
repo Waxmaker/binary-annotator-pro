@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/select";
 
 interface FileData {
+  id?: number; // File ID from database
   name: string;
   size: number;
   buffer?: ArrayBuffer; // Optional - only used for small files or legacy mode

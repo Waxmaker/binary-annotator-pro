@@ -68,7 +68,9 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
 
   // Load latest analysis on mount
   useEffect(() => {
-    loadLatestAnalysis();
+    if (fileId && fileId > 0) {
+      loadLatestAnalysis();
+    }
   }, [fileId]);
 
   // Poll for updates if analysis is running
@@ -236,6 +238,20 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
+
+  // Show message if no file selected
+  if (!fileId || fileId === 0) {
+    return (
+      <div className="h-full flex items-center justify-center bg-background">
+        <div className="text-center">
+          <FileArchive className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">
+            Select a binary file to analyze compression
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col bg-background">
