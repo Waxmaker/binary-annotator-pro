@@ -1,0 +1,11 @@
+# Core dependencies (already included in Python)
+# - zlib, gzip, bz2, lzma, hashlib, json
+
+# Optional compression libraries for enhanced detection
+lz4>=4.3.2
+zstandard>=0.22.0
+brotli>=1.1.0
+python-snappy>=0.7.1
+
+# For future enhancements
+numpy>=1.24.0  # For advanced signal processing (ECG)

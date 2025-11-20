@@ -30,6 +30,14 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	// Binary analysis
 	e.GET("/analysis/trigrams/:name", h.GetBinaryTrigrams)
 
+	// Compression detection
+	e.POST("/analysis/compression/:fileId", h.StartCompressionAnalysis)
+	e.GET("/analysis/compression/:analysisId", h.GetCompressionAnalysis)
+	e.GET("/analysis/compression/file/:fileId", h.GetFileCompressionAnalyses)
+	e.GET("/analysis/compression/file/:fileId/latest", h.GetLatestCompressionAnalysis)
+	e.GET("/analysis/compression/download/:resultId", h.DownloadDecompressedFile)
+	e.DELETE("/analysis/compression/:analysisId", h.DeleteCompressionAnalysis)
+
 	// Delete
 	e.DELETE("/delete/binary/:name", h.DeleteBinaryFile)
 	e.DELETE("/delete/yaml/:name", h.DeleteYamlConfig)

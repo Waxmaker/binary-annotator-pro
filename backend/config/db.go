@@ -47,6 +47,9 @@ func InitDB(path string) (*DB, error) {
 		&models.AISettings{},
 		&models.ChatSession{},
 		&models.ChatMessage{},
+		&models.CompressionAnalysis{},
+		&models.CompressionResult{},
+		&models.DecompressedFile{},
 	); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { createSampledBuffer, SamplingInfo } from "@/utils/fileSampling";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -18,6 +20,7 @@ import { TagList } from "@/components/TagList";
 import { ECGInspector } from "@/components/ECGInspector";
 import { AdvancedVisualizations } from "@/components/AdvancedVisualizations";
 import { ComparisonPanel } from "@/components/ComparisonPanel";
+import { CompressionDetection } from "@/components/CompressionDetection";
 import { useHexSelection } from "@/hooks/useHexSelection";
 import { useYamlConfig } from "@/hooks/useYamlConfig";
 import {
@@ -32,6 +35,7 @@ import {
   Settings,
   MessageSquare,
   BookOpen,
+  FileArchive,
 } from "lucide-react";
 import { useEffect } from "react";
 import { fetchBinaryList, fetchBinaryFile } from "@/lib/api";
@@ -139,7 +143,7 @@ const Index = () => {
           );
 
           // Fetch the file blob first
-          const response = await fetch(`/api/binaries/${encodeURIComponent(file.name)}`);
+          const response = await fetch(`${API_BASE_URL}/get/binary/${encodeURIComponent(file.name)}`);
           if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
           const blob = await response.blob();
 
@@ -514,6 +518,14 @@ const Index = () => {
                   <Info className="h-4 w-4" />
                   Info
                 </TabsTrigger>
+                <TabsTrigger
+                  onClick={() => setSelectTab("compression")}
+                  value="compression"
+                  className="gap-1.5"
+                >
+                  <FileArchive className="h-4 w-4" />
+                  Compression
+                </TabsTrigger>
               </TabsList>
               <TabsContent
                 value="files"
@@ -636,6 +648,19 @@ const Index = () => {
                     />
                   </ResizablePanel>
                 </ResizablePanelGroup>
+              </TabsContent>
+              <TabsContent
+                value="compression"
+                className={
+                  selectTab === "compression"
+                    ? "flex-1 m-0 overflow-hidden bg-background"
+                    : "hidden"
+                }
+              >
+                <CompressionDetection
+                  fileId={files.find((f) => f.name === currentFile)?.id || 0}
+                  fileName={currentFile || ""}
+                />
               </TabsContent>
             </Tabs>
           </ResizablePanel>

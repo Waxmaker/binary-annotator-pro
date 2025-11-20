@@ -130,3 +130,68 @@ type ChatMessage struct {
 	ToolCalls string `gorm:"type:text" json:"tool_calls,omitempty"` // JSON encoded
 	ToolName  string `json:"tool_name,omitempty"`
 }
+
+// CompressionAnalysis represents a compression detection analysis session
+type CompressionAnalysis struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	FileID       uint   `gorm:"index;not null" json:"file_id"`
+	Status       string `json:"status"` // "pending", "running", "completed", "failed"
+	TotalTests   int    `json:"total_tests"`
+	SuccessCount int    `json:"success_count"`
+	FailedCount  int    `json:"failed_count"`
+
+	// Best candidate
+	BestMethod     string  `json:"best_method,omitempty"`
+	BestRatio      float64 `json:"best_ratio,omitempty"`
+	BestConfidence float64 `json:"best_confidence,omitempty"`
+
+	// Error if failed
+	Error string `json:"error,omitempty"`
+
+	// Relations
+	Results []CompressionResult `gorm:"foreignKey:AnalysisID" json:"results,omitempty"`
+}
+
+// CompressionResult represents a single compression method test result
+type CompressionResult struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	AnalysisID         uint    `gorm:"index;not null" json:"analysis_id"`
+	Method             string  `gorm:"not null" json:"method"` // "rle", "delta", "huffman", etc.
+	Success            bool    `json:"success"`
+	CompressionRatio   float64 `json:"compression_ratio"`   // decompressed / original
+	Confidence         float64 `json:"confidence"`          // 0.0 to 1.0
+	DecompressedSize   int64   `json:"decompressed_size"`
+	OriginalSize       int64   `json:"original_size"`
+	EntropyOriginal    float64 `json:"entropy_original"`
+	EntropyDecompressed float64 `json:"entropy_decompressed"`
+
+	// Validation
+	ChecksumValid bool   `json:"checksum_valid"`
+	ValidationMsg string `json:"validation_msg,omitempty"`
+
+	// Error if failed
+	Error string `json:"error,omitempty"`
+
+	// File reference
+	DecompressedFileID *uint `json:"decompressed_file_id,omitempty"`
+}
+
+// DecompressedFile stores decompressed variant of a file
+type DecompressedFile struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	OriginalFileID uint   `gorm:"index;not null" json:"original_file_id"`
+	ResultID       uint   `gorm:"index;not null" json:"result_id"`
+	Method         string `json:"method"`
+	FileName       string `json:"file_name"` // e.g., "file.DAT.RLE"
+	Size           int64  `json:"size"`
+	Data           []byte `gorm:"type:blob" json:"-"`
+}
