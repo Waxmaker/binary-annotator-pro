@@ -15,7 +15,7 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
-  Maximize2
+  Maximize2,
 } from "lucide-react";
 import {
   Tooltip,
@@ -58,9 +58,11 @@ export function AdvancedVisualizations({
   fileName,
 }: AdvancedVisualizationsProps) {
   const [expandedCards, setExpandedCards] = useState<Set<VisualizationType>>(
-    new Set(["histogram"])
+    new Set([]),
   );
-  const [bigViewOpen, setBigViewOpen] = useState<VisualizationType | null>(null);
+  const [bigViewOpen, setBigViewOpen] = useState<VisualizationType | null>(
+    null,
+  );
 
   const toggleCard = (id: VisualizationType) => {
     setExpandedCards((prev) => {
@@ -87,9 +89,11 @@ export function AdvancedVisualizations({
       id: "histogram",
       title: "Byte Frequency Distribution",
       icon: <BarChart3 className="h-5 w-5" />,
-      description: "Distribution of byte values (0x00 to 0xFF) throughout the file",
+      description:
+        "Distribution of byte values (0x00 to 0xFF) throughout the file",
       whatIsIt: "Shows how often each byte value appears in your file",
-      whyUseful: "Helps identify common patterns, file types, and encoding methods. ASCII text shows peaks in printable ranges (0x20-0x7E), while compressed/encrypted data appears more uniform.",
+      whyUseful:
+        "Helps identify common patterns, file types, and encoding methods. ASCII text shows peaks in printable ranges (0x20-0x7E), while compressed/encrypted data appears more uniform.",
       component: <ByteHistogram buffer={buffer} />,
     },
     {
@@ -97,26 +101,34 @@ export function AdvancedVisualizations({
       title: "Entropy Analysis",
       icon: <TrendingUp className="h-5 w-5" />,
       description: "Measures randomness and data complexity across the file",
-      whatIsIt: "Shannon entropy calculates how 'random' or 'ordered' your data is (0 = very structured, 8 = completely random)",
-      whyUseful: "Low entropy indicates structured data (headers, text, repeated patterns). High entropy suggests compression, encryption, or actual random data. Perfect for finding compressed sections in mixed files.",
+      whatIsIt:
+        "Shannon entropy calculates how 'random' or 'ordered' your data is (0 = very structured, 8 = completely random)",
+      whyUseful:
+        "Low entropy indicates structured data (headers, text, repeated patterns). High entropy suggests compression, encryption, or actual random data. Perfect for finding compressed sections in mixed files.",
       component: <EntropyGraph buffer={buffer} />,
     },
     {
       id: "bitmap",
       title: "2D Bitmap Visualization",
       icon: <Image className="h-5 w-5" />,
-      description: "Visual representation of binary data with color modes and tag overlay",
-      whatIsIt: "Each byte becomes a pixel with multiple color interpretations - see your data visually with highlighted annotations",
-      whyUseful: "Hidden patterns, structures, and boundaries become visible to the human eye. Tag overlays show exactly where your annotations are. Great for spotting file headers, padding, embedded images, or corrupted sections.",
+      description:
+        "Visual representation of binary data with color modes and tag overlay",
+      whatIsIt:
+        "Each byte becomes a pixel with multiple color interpretations - see your data visually with highlighted annotations",
+      whyUseful:
+        "Hidden patterns, structures, and boundaries become visible to the human eye. Tag overlays show exactly where your annotations are. Great for spotting file headers, padding, embedded images, or corrupted sections.",
       component: <BitmapView buffer={buffer} highlights={highlights} />,
     },
     {
       id: "trigrams",
       title: "Trigram Shapes (3D)",
       icon: <Box className="h-5 w-5" />,
-      description: "3D visualization of three-byte sequences with multiple coordinate systems",
-      whatIsIt: "Maps 3-byte sequences to 3D space (x, y, z coordinates) showing file structure in Cartesian, Cylindrical, or Spherical views",
-      whyUseful: "Reveals complex patterns invisible in 2D. Color gradient (yellow→blue) shows data distribution from file start to end. Different shapes expose different structural patterns in binary files, compressed data, and executables.",
+      description:
+        "3D visualization of three-byte sequences with multiple coordinate systems",
+      whatIsIt:
+        "Maps 3-byte sequences to 3D space (x, y, z coordinates) showing file structure in Cartesian, Cylindrical, or Spherical views",
+      whyUseful:
+        "Reveals complex patterns invisible in 2D. Color gradient (yellow→blue) shows data distribution from file start to end. Different shapes expose different structural patterns in binary files, compressed data, and executables.",
       component: <TrigramVisualization buffer={buffer} fileName={fileName} />,
     },
   ];
@@ -143,7 +155,9 @@ export function AdvancedVisualizations({
           <div className="text-center text-muted-foreground">
             <BarChart3 className="h-16 w-16 mx-auto mb-4 opacity-30" />
             <p className="text-sm font-medium">No file loaded</p>
-            <p className="text-xs mt-2">Select a binary file to view analysis</p>
+            <p className="text-xs mt-2">
+              Select a binary file to view analysis
+            </p>
           </div>
         </div>
       </div>
@@ -164,11 +178,12 @@ export function AdvancedVisualizations({
                 Advanced Binary Analysis
               </h2>
               <p className="text-xs text-muted-foreground">
-                Statistical visualizations to understand file structure and patterns
+                Statistical visualizations to understand file structure and
+                patterns
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-col">
             <Button
               variant="outline"
               size="sm"
@@ -195,8 +210,9 @@ export function AdvancedVisualizations({
           <div className="flex items-center gap-2 text-sm">
             <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <p className="text-blue-800 dark:text-blue-200">
-              <strong>Sampled Analysis:</strong> {formatSamplingInfo(samplingInfo)}
-              {" "}(first 10MB + middle 10MB + last 10MB)
+              <strong>Sampled Analysis:</strong>{" "}
+              {formatSamplingInfo(samplingInfo)} (first 10MB + middle 10MB +
+              last 10MB)
             </p>
           </div>
         </div>
@@ -208,7 +224,10 @@ export function AdvancedVisualizations({
           const isExpanded = expandedCards.has(viz.id);
 
           return (
-            <Card key={viz.id} className="overflow-hidden border-2 transition-colors hover:border-primary/50">
+            <Card
+              key={viz.id}
+              className="overflow-hidden border-2 transition-colors hover:border-primary/50"
+            >
               {/* Card Header */}
               <div className="p-4 bg-muted/30">
                 <div className="flex items-start justify-between gap-4">
@@ -230,12 +249,20 @@ export function AdvancedVisualizations({
                             <TooltipContent className="max-w-xs" side="right">
                               <div className="space-y-2 text-xs">
                                 <div>
-                                  <p className="font-semibold mb-1">What is it?</p>
-                                  <p className="text-muted-foreground">{viz.whatIsIt}</p>
+                                  <p className="font-semibold mb-1">
+                                    What is it?
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    {viz.whatIsIt}
+                                  </p>
                                 </div>
                                 <div>
-                                  <p className="font-semibold mb-1">Why useful?</p>
-                                  <p className="text-muted-foreground">{viz.whyUseful}</p>
+                                  <p className="font-semibold mb-1">
+                                    Why useful?
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    {viz.whyUseful}
+                                  </p>
                                 </div>
                               </div>
                             </TooltipContent>
@@ -285,44 +312,46 @@ export function AdvancedVisualizations({
               </div>
 
               {/* Card Content */}
-              {isExpanded && (
-                <div className="border-t">
-                  {viz.component}
-                </div>
-              )}
+              {isExpanded && <div className="border-t">{viz.component}</div>}
             </Card>
           );
         })}
       </div>
 
       {/* Big View Dialog */}
-      <Dialog open={bigViewOpen !== null} onOpenChange={(open) => !open && setBigViewOpen(null)}>
+      <Dialog
+        open={bigViewOpen !== null}
+        onOpenChange={(open) => !open && setBigViewOpen(null)}
+      >
         <DialogContent className="max-w-[95vw] max-h-[95vh] h-[95vh] p-0">
-          {bigViewOpen && (() => {
-            const viz = visualizations.find(v => v.id === bigViewOpen);
-            if (!viz) return null;
+          {bigViewOpen &&
+            (() => {
+              const viz = visualizations.find((v) => v.id === bigViewOpen);
+              if (!viz) return null;
 
-            return (
-              <>
-                <DialogHeader className="px-6 py-4 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                      {viz.icon}
+              return (
+                <>
+                  <DialogHeader className="px-6 py-4 border-b">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                        {viz.icon}
+                      </div>
+                      <div>
+                        <DialogTitle className="text-lg">
+                          {viz.title}
+                        </DialogTitle>
+                        <DialogDescription className="text-xs mt-1">
+                          {viz.description}
+                        </DialogDescription>
+                      </div>
                     </div>
-                    <div>
-                      <DialogTitle className="text-lg">{viz.title}</DialogTitle>
-                      <DialogDescription className="text-xs mt-1">
-                        {viz.description}
-                      </DialogDescription>
-                    </div>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-auto p-6">
+                    {viz.component}
                   </div>
-                </DialogHeader>
-                <div className="flex-1 overflow-auto p-6">
-                  {viz.component}
-                </div>
-              </>
-            );
-          })()}
+                </>
+              );
+            })()}
         </DialogContent>
       </Dialog>
     </div>

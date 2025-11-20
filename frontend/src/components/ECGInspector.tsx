@@ -144,25 +144,6 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
         <Card className="p-3 bg-card border-primary/20">
           <div className="space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Start:</span>
-              <span className="font-mono text-hex-address">
-                {formatAddress(selection.start)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">End:</span>
-              <span className="font-mono text-hex-address">
-                {formatAddress(selection.end)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Size:</span>
-              <span className="font-mono font-bold text-primary">
-                {size} bytes
-              </span>
-            </div>
-            <Separator />
-            <div className="flex justify-between">
               <span className="text-muted-foreground">Suggested KSY type:</span>
               <span className="font-mono text-accent text-xs">
                 {suggestedType}
@@ -177,7 +158,9 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
             <div className="space-y-2">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <h3 className="text-xs font-semibold text-foreground">AI Prediction</h3>
+                <h3 className="text-xs font-semibold text-foreground">
+                  AI Prediction
+                </h3>
               </div>
               <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">
                 {aiPrediction}

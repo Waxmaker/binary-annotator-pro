@@ -70,7 +70,7 @@ const Index = () => {
   const [files, setFiles] = useState<FileData[]>([]);
   const [currentFile, setCurrentFile] = useState<string | null>(() => {
     // Load from localStorage on mount
-    return localStorage.getItem('selectedBinaryFile');
+    return localStorage.getItem("selectedBinaryFile");
   });
   const [scrollToOffset, setScrollToOffset] = useState<number | null>(null);
   const [hoveredTag, setHoveredTag] = useState<string | null>(null);
@@ -91,9 +91,9 @@ const Index = () => {
   // Save current file to localStorage whenever it changes
   useEffect(() => {
     if (currentFile) {
-      localStorage.setItem('selectedBinaryFile', currentFile);
+      localStorage.setItem("selectedBinaryFile", currentFile);
     } else {
-      localStorage.removeItem('selectedBinaryFile');
+      localStorage.removeItem("selectedBinaryFile");
     }
   }, [currentFile]);
 
@@ -145,12 +145,17 @@ const Index = () => {
           );
 
           // Fetch the file blob first
-          const response = await fetch(`${API_BASE_URL}/get/binary/${encodeURIComponent(file.name)}`);
-          if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
+          const response = await fetch(
+            `${API_BASE_URL}/get/binary/${encodeURIComponent(file.name)}`,
+          );
+          if (!response.ok)
+            throw new Error(`Failed to fetch file: ${response.statusText}`);
           const blob = await response.blob();
 
           // Create sampled buffer
-          const sampledData = await createSampledBuffer(new File([blob], file.name));
+          const sampledData = await createSampledBuffer(
+            new File([blob], file.name),
+          );
           buffer = sampledData.buffer;
           info = sampledData.info;
         } else {
@@ -287,9 +292,13 @@ const Index = () => {
 
       try {
         // Fetch decompressed file data
-        const response = await fetch(`${API_BASE_URL}/decompressed/${fileId}/data`);
+        const response = await fetch(
+          `${API_BASE_URL}/decompressed/${fileId}/data`,
+        );
         if (!response.ok) {
-          throw new Error(`Failed to fetch decompressed file: ${response.statusText}`);
+          throw new Error(
+            `Failed to fetch decompressed file: ${response.statusText}`,
+          );
         }
 
         const blob = await response.blob();
@@ -305,9 +314,12 @@ const Index = () => {
           strategy: "full",
         });
 
-        toast.success(`Loaded ${fileName} (${(buffer.byteLength / 1024).toFixed(1)} KB)`, {
-          id: loadingToast,
-        });
+        toast.success(
+          `Loaded ${fileName} (${(buffer.byteLength / 1024).toFixed(1)} KB)`,
+          {
+            id: loadingToast,
+          },
+        );
       } catch (err) {
         console.error("Failed to load decompressed file:", err);
         toast.error(`Failed to load ${fileName}`, { id: loadingToast });
@@ -421,8 +433,9 @@ const Index = () => {
 
         if (loaded.length > 0) {
           // Check if the previously selected file still exists
-          const savedFile = localStorage.getItem('selectedBinaryFile');
-          const fileExists = savedFile && loaded.some(f => f.name === savedFile);
+          const savedFile = localStorage.getItem("selectedBinaryFile");
+          const fileExists =
+            savedFile && loaded.some((f) => f.name === savedFile);
 
           if (fileExists) {
             setCurrentFile(savedFile);
@@ -798,7 +811,7 @@ const Index = () => {
           {/* Right Panel */}
           <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
             <ResizablePanelGroup direction="vertical">
-              <ResizablePanel defaultSize={40} minSize={25}>
+              <ResizablePanel defaultSize={40} minSize={10}>
                 <TagList
                   highlights={highlights}
                   onTagClick={handleTagClick}
