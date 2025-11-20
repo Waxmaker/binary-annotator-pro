@@ -3,11 +3,9 @@ package main
 import (
 	"binary-annotator-pro/config"
 	"binary-annotator-pro/router"
-	"binary-annotator-pro/services"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -25,27 +23,6 @@ func main() {
 		log.Fatalf("failed to init db: %v", err)
 	}
 	defer func() { _ = db.SQLDB.Close() }()
-
-	// Init MCP Service
-	mcpService := services.GetMCPService()
-
-	// Try to load MCP config from home directory
-	home, err := os.UserHomeDir()
-	if err == nil {
-		mcpConfigPath := filepath.Join(home, ".mcp.json")
-		if _, err := os.Stat(mcpConfigPath); err == nil {
-			if err := mcpService.Initialize(mcpConfigPath); err != nil {
-				log.Printf("Warning: MCP initialization failed: %v", err)
-			} else {
-				log.Printf("MCP Service initialized: %d server(s), %d tool(s)",
-					mcpService.GetConnectedCount(),
-					mcpService.GetToolsCount())
-			}
-		} else {
-			log.Println("No MCP config found at ~/.mcp.json, MCP features disabled")
-		}
-	}
-	defer mcpService.Shutdown()
 
 	// Echo
 	e := echo.New()

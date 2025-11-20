@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"binary-annotator-pro/config"
-	"binary-annotator-pro/mcplib"
 	"binary-annotator-pro/models"
 	"binary-annotator-pro/services"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
@@ -15,32 +16,47 @@ import (
 
 // ChatHandler manages chat WebSocket connections
 type ChatHandler struct {
-	db *config.DB
+	db                *config.DB
+	mcpDockerHandler  *MCPDockerHandler
+	approvalChannels  map[uint]chan bool // Map session ID to approval channel
 }
 
 // NewChatHandler creates a new chat handler
 func NewChatHandler(db *config.DB) *ChatHandler {
-	return &ChatHandler{db: db}
+	return &ChatHandler{
+		db:                db,
+		mcpDockerHandler:  NewMCPDockerHandler(),
+		approvalChannels:  make(map[uint]chan bool),
+	}
+}
+
+// ToolApprovalRequest represents a tool call awaiting approval
+type ToolApprovalRequest struct {
+	ToolName  string                 `json:"tool_name"`
+	Arguments map[string]interface{} `json:"arguments"`
+	Server    string                 `json:"server"`
 }
 
 // ChatWSMessage represents WebSocket messages for chat
 type ChatWSMessage struct {
-	Type      string                    `json:"type"` // "message", "history", "new_session", "load_session"
-	UserID    string                    `json:"user_id"`
-	SessionID *uint                     `json:"session_id,omitempty"`
-	Message   string                    `json:"message,omitempty"`
-	FileID    *uint                     `json:"file_id,omitempty"`
-	Messages  []services.ChatMessageReq `json:"messages,omitempty"`
+	Type         string                    `json:"type"` // "message", "history", "new_session", "load_session", "tool_approval"
+	UserID       string                    `json:"user_id"`
+	SessionID    *uint                     `json:"session_id,omitempty"`
+	Message      string                    `json:"message,omitempty"`
+	FileID       *uint                     `json:"file_id,omitempty"`
+	Messages     []services.ChatMessageReq `json:"messages,omitempty"`
+	ToolApproved *bool                     `json:"tool_approved,omitempty"` // For tool approval responses
 }
 
 // ChatWSResponse represents WebSocket response
 type ChatWSResponse struct {
-	Type      string               `json:"type"` // "chunk", "done", "error", "history", "session_created"
-	Chunk     string               `json:"chunk,omitempty"`
-	Error     string               `json:"error,omitempty"`
-	SessionID uint                 `json:"session_id,omitempty"`
-	Messages  []models.ChatMessage `json:"messages,omitempty"`
-	Sessions  []models.ChatSession `json:"sessions,omitempty"`
+	Type            string                 `json:"type"` // "chunk", "done", "error", "history", "session_created", "tool_approval_request"
+	Chunk           string                 `json:"chunk,omitempty"`
+	Error           string                 `json:"error,omitempty"`
+	SessionID       uint                   `json:"session_id,omitempty"`
+	Messages        []models.ChatMessage   `json:"messages,omitempty"`
+	Sessions        []models.ChatSession   `json:"sessions,omitempty"`
+	ToolApproval    *ToolApprovalRequest   `json:"tool_approval,omitempty"`    // Tool awaiting approval
 }
 
 // HandleChat handles WebSocket connections for chat
@@ -82,7 +98,10 @@ func (ch *ChatHandler) HandleChat(c echo.Context) error {
 		case "list_sessions":
 			ch.handleListSessions(ws, msg)
 		case "message":
-			ch.handleChatMessage(ws, msg)
+			// Run in goroutine to not block WebSocket read loop (needed for tool approval)
+			go ch.handleChatMessage(ws, msg)
+		case "tool_approval":
+			ch.handleToolApproval(ws, msg)
 		default:
 			ws.WriteJSON(&ChatWSResponse{
 				Type:  "error",
@@ -166,6 +185,35 @@ func (ch *ChatHandler) handleListSessions(ws *websocket.Conn, msg ChatWSMessage)
 	})
 }
 
+// handleToolApproval handles tool approval responses from the user
+func (ch *ChatHandler) handleToolApproval(ws *websocket.Conn, msg ChatWSMessage) {
+	if msg.SessionID == nil {
+		ws.WriteJSON(&ChatWSResponse{
+			Type:  "error",
+			Error: "session_id required",
+		})
+		return
+	}
+
+	if msg.ToolApproved == nil {
+		ws.WriteJSON(&ChatWSResponse{
+			Type:  "error",
+			Error: "tool_approved field required",
+		})
+		return
+	}
+
+	// Find the approval channel for this session
+	approvalChan, exists := ch.approvalChannels[*msg.SessionID]
+	if !exists {
+		log.Printf("No pending tool approval for session %d", *msg.SessionID)
+		return
+	}
+
+	// Send the approval decision to the waiting goroutine
+	approvalChan <- *msg.ToolApproved
+}
+
 // handleChatMessage processes a chat message and streams response
 func (ch *ChatHandler) handleChatMessage(ws *websocket.Conn, msg ChatWSMessage) {
 	if msg.SessionID == nil {
@@ -220,19 +268,13 @@ func (ch *ChatHandler) handleChatMessage(ws *websocket.Conn, msg ChatWSMessage) 
 		}
 	}
 
-	// Get MCP tools
-	mcpService := services.GetMCPService()
-	mcpTools, err := mcpService.ListAllTools()
+	// Get MCP tools from Docker Manager
+	ollamaTools, toolToServer, err := ch.getMCPToolsFromDocker()
 	if err != nil {
-		log.Printf("Failed to get MCP tools: %v", err)
+		log.Printf("Warning: failed to get MCP tools: %v", err)
+		ollamaTools = []services.Tool{} // Continue without tools
 	}
-
-	// Convert MCP tools to Ollama format
-	var ollamaTools []services.Tool
-	if mcpTools != nil && len(mcpTools) > 0 {
-		ollamaTools = convertMCPToolsToOllamaFormat(mcpTools)
-		log.Printf("Loaded %d MCP tools for chat", len(ollamaTools))
-	}
+	log.Printf("Loaded %d MCP tools from Docker Manager", len(ollamaTools))
 
 	// Get conversation history
 	var messages []models.ChatMessage
@@ -379,8 +421,69 @@ When analyzing files:
 				Chunk: fmt.Sprintf("\n\n🔧 Calling tool: %s...\n", toolName),
 			})
 
-			// Call the MCP tool
-			result, err := mcpService.CallTool("binary-annotator", toolName, arguments)
+			// Find which server hosts this tool
+			serverName, found := toolToServer[toolName]
+			if !found {
+				log.Printf("Tool %s not found in any server", toolName)
+				ws.WriteJSON(&ChatWSResponse{
+					Type:  "chunk",
+					Chunk: fmt.Sprintf("❌ Tool %s not found\n", toolName),
+				})
+				chatMessages = append(chatMessages, services.ChatMessageReq{
+					Role:    "tool",
+					Content: fmt.Sprintf("Error: tool %s not found", toolName),
+				})
+				continue
+			}
+
+			// Request user approval for tool execution
+			approvalChan := make(chan bool, 1)
+			ch.approvalChannels[*msg.SessionID] = approvalChan
+
+			// Send approval request to frontend
+			ws.WriteJSON(&ChatWSResponse{
+				Type: "tool_approval_request",
+				ToolApproval: &ToolApprovalRequest{
+					ToolName:  toolName,
+					Arguments: arguments,
+					Server:    serverName,
+				},
+			})
+
+			log.Printf("Waiting for user approval for tool: %s", toolName)
+
+			// Wait for approval with 60 second timeout
+			var approved bool
+			select {
+			case approved = <-approvalChan:
+				log.Printf("Tool %s %s by user", toolName, map[bool]string{true: "approved", false: "denied"}[approved])
+			case <-time.After(60 * time.Second):
+				log.Printf("Tool approval timeout for %s", toolName)
+				approved = false
+			}
+
+			// Clean up approval channel
+			delete(ch.approvalChannels, *msg.SessionID)
+
+			// If not approved, skip execution
+			if !approved {
+				ws.WriteJSON(&ChatWSResponse{
+					Type:  "chunk",
+					Chunk: fmt.Sprintf("⚠️ Tool %s execution was denied\n", toolName),
+				})
+				chatMessages = append(chatMessages, services.ChatMessageReq{
+					Role:    "tool",
+					Content: fmt.Sprintf("User denied execution of %s", toolName),
+				})
+				continue
+			}
+
+			// Call the MCP tool via Docker Manager
+			result, err := ch.mcpDockerHandler.proxyRequest("POST", "/servers/"+serverName+"/call", map[string]interface{}{
+				"tool":      toolName,
+				"arguments": arguments,
+			})
+
 			if err != nil {
 				log.Printf("Tool call error: %v", err)
 				ws.WriteJSON(&ChatWSResponse{
@@ -397,19 +500,8 @@ When analyzing files:
 			}
 
 			// Format tool result
-			var resultText string
-			if len(result.Content) > 0 {
-				// Combine all content items
-				for _, item := range result.Content {
-					if item.Type == "text" {
-						resultText += item.Text
-					}
-				}
-			}
-
-			if resultText == "" {
-				resultText = "Tool executed successfully but returned no content"
-			}
+			resultBytes, _ := json.Marshal(result)
+			resultText := string(resultBytes)
 
 			log.Printf("Tool result: %s", resultText)
 
@@ -475,161 +567,91 @@ func (ch *ChatHandler) DeleteChatSession(c echo.Context) error {
 
 // handleMCPCommand handles MCP-specific commands in chat
 func (ch *ChatHandler) handleMCPCommand(ws *websocket.Conn, msg ChatWSMessage) {
-	mcpService := services.GetMCPService()
-
-	switch msg.Message {
-	case "/mcp-status":
-		ch.sendMCPStatus(ws, msg, mcpService)
-	case "/mcp-list":
-		ch.sendMCPToolsList(ws, msg, mcpService)
-	default:
-		// Send error as a chunk
-		ws.WriteJSON(&ChatWSResponse{
-			Type:  "chunk",
-			Chunk: "Unknown command. Available commands:\n- /mcp-status - Show MCP connection status\n- /mcp-list - List all available MCP tools\n",
-		})
-		ws.WriteJSON(&ChatWSResponse{Type: "done"})
-	}
+	ws.WriteJSON(&ChatWSResponse{
+		Type:  "chunk",
+		Chunk: "MCP commands disabled - using Docker MCP manager instead\n",
+	})
+	ws.WriteJSON(&ChatWSResponse{Type: "done"})
 }
 
 // sendMCPStatus sends MCP connection status to the chat
-func (ch *ChatHandler) sendMCPStatus(ws *websocket.Conn, msg ChatWSMessage, mcpService *services.MCPService) {
-	connectedCount := mcpService.GetConnectedCount()
-	toolsCount := mcpService.GetToolsCount()
-	statuses := mcpService.GetServerStatus()
-
-	response := "📊 **MCP Status**\n\n"
-	response += "**Connected Servers:** " + fmt.Sprintf("%d\n", connectedCount)
-	response += "**Total Tools:** " + fmt.Sprintf("%d\n\n", toolsCount)
-
-	if len(statuses) > 0 {
-		response += "**Server Details:**\n"
-		for _, status := range statuses {
-			response += fmt.Sprintf("\n• **%s**\n", status.Name)
-			if status.Connected {
-				response += "  ✅ Connected\n"
-			} else {
-				response += "  ❌ Disconnected\n"
-			}
-			if status.Initialized {
-				response += fmt.Sprintf("  🔧 Tools: %d\n", status.ToolsCount)
-				response += fmt.Sprintf("  📦 Version: %s\n", status.ServerInfo.Version)
-			}
-		}
-	} else {
-		response += "No MCP servers configured. Add servers to ~/.mcp.json\n"
-	}
-
-	// Save command message
-	userMsg := models.ChatMessage{
-		SessionID: *msg.SessionID,
-		Role:      "user",
-		Content:   msg.Message,
-	}
-	ch.db.GormDB.Create(&userMsg)
-
-	// Send response as chunks
-	ws.WriteJSON(&ChatWSResponse{
-		Type:  "chunk",
-		Chunk: response,
-	})
-
-	// Save assistant response
-	assistantMsg := models.ChatMessage{
-		SessionID: *msg.SessionID,
-		Role:      "assistant",
-		Content:   response,
-	}
-	ch.db.GormDB.Create(&assistantMsg)
-
-	ws.WriteJSON(&ChatWSResponse{Type: "done"})
+func (ch *ChatHandler) sendMCPStatus(ws *websocket.Conn, msg ChatWSMessage, mcpService interface{}) {
+	// Disabled
 }
 
-// convertMCPToolsToOllamaFormat converts MCP tools to Ollama's tool format
-func convertMCPToolsToOllamaFormat(mcpTools []mcplib.ToolInfo) []services.Tool {
-	ollamaTools := make([]services.Tool, 0, len(mcpTools))
-
-	for _, mcpTool := range mcpTools {
-		// Convert InputSchema to Ollama parameters format
-		parameters := map[string]interface{}{
-			"type": mcpTool.Tool.InputSchema.Type,
-		}
-
-		if mcpTool.Tool.InputSchema.Properties != nil {
-			parameters["properties"] = mcpTool.Tool.InputSchema.Properties
-		}
-
-		if len(mcpTool.Tool.InputSchema.Required) > 0 {
-			parameters["required"] = mcpTool.Tool.InputSchema.Required
-		}
-
-		ollamaTool := services.Tool{
-			Type: "function",
-			Function: services.FunctionDef{
-				Name:        mcpTool.Tool.Name,
-				Description: mcpTool.Tool.Description,
-				Parameters:  parameters,
-			},
-		}
-
-		ollamaTools = append(ollamaTools, ollamaTool)
-	}
-
-	return ollamaTools
-}
 
 // sendMCPToolsList sends the list of all MCP tools to the chat
-func (ch *ChatHandler) sendMCPToolsList(ws *websocket.Conn, msg ChatWSMessage, mcpService *services.MCPService) {
-	tools, err := mcpService.ListAllTools()
+func (ch *ChatHandler) sendMCPToolsList(ws *websocket.Conn, msg ChatWSMessage, mcpService interface{}) {
+	// Disabled
+}
+
+// getMCPToolsFromDocker retrieves all MCP tools from Docker Manager and converts to Ollama format
+func (ch *ChatHandler) getMCPToolsFromDocker() ([]services.Tool, map[string]string, error) {
+	// Get list of running MCP servers from Docker Manager
+	// Note: /servers endpoint returns an array, not an object
+	req, err := http.NewRequest("GET", ch.mcpDockerHandler.managerURL+"/servers", nil)
 	if err != nil {
-		ws.WriteJSON(&ChatWSResponse{
-			Type:  "error",
-			Error: "Failed to list MCP tools",
-		})
-		return
+		return nil, nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	response := "🛠️ **Available MCP Tools**\n\n"
-	response += fmt.Sprintf("Total: %d tools\n\n", len(tools))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch servers: %w", err)
+	}
+	defer resp.Body.Close()
 
-	if len(tools) == 0 {
-		response += "No tools available. Make sure MCP servers are connected.\n"
-	} else {
-		currentServer := ""
-		for _, toolInfo := range tools {
-			if currentServer != toolInfo.ServerName {
-				currentServer = toolInfo.ServerName
-				response += fmt.Sprintf("\n**Server: %s**\n\n", currentServer)
+	var servers []map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&servers); err != nil {
+		return nil, nil, fmt.Errorf("failed to decode servers: %w", err)
+	}
+
+	// Convert MCP tools to Ollama format
+	var ollamaTools []services.Tool
+	toolToServer := make(map[string]string) // Maps tool name to server name
+
+	for _, server := range servers {
+		serverName, _ := server["name"].(string)
+		tools, ok := server["tools"].([]interface{})
+		if !ok || len(tools) == 0 {
+			continue
+		}
+
+		for _, toolData := range tools {
+			toolMap, ok := toolData.(map[string]interface{})
+			if !ok {
+				continue
 			}
-			response += fmt.Sprintf("• **%s**\n", toolInfo.Tool.Name)
-			if toolInfo.Tool.Description != "" {
-				response += fmt.Sprintf("  %s\n", toolInfo.Tool.Description)
+
+			name, _ := toolMap["name"].(string)
+			description, _ := toolMap["description"].(string)
+			inputSchema, _ := toolMap["inputSchema"].(map[string]interface{})
+
+			// Convert MCP InputSchema to Ollama Parameters format
+			parameters := make(map[string]interface{})
+			if inputSchema != nil {
+				parameters["type"] = inputSchema["type"]
+				if props, ok := inputSchema["properties"].(map[string]interface{}); ok {
+					parameters["properties"] = props
+				}
+				if required, ok := inputSchema["required"].([]interface{}); ok {
+					parameters["required"] = required
+				}
 			}
-			response += "\n"
+
+			ollamaTool := services.Tool{
+				Type: "function",
+				Function: services.FunctionDef{
+					Name:        name,
+					Description: description,
+					Parameters:  parameters,
+				},
+			}
+
+			ollamaTools = append(ollamaTools, ollamaTool)
+			toolToServer[name] = serverName
 		}
 	}
 
-	// Save command message
-	userMsg := models.ChatMessage{
-		SessionID: *msg.SessionID,
-		Role:      "user",
-		Content:   msg.Message,
-	}
-	ch.db.GormDB.Create(&userMsg)
-
-	// Send response as chunks
-	ws.WriteJSON(&ChatWSResponse{
-		Type:  "chunk",
-		Chunk: response,
-	})
-
-	// Save assistant response
-	assistantMsg := models.ChatMessage{
-		SessionID: *msg.SessionID,
-		Role:      "assistant",
-		Content:   response,
-	}
-	ch.db.GormDB.Create(&assistantMsg)
-
-	ws.WriteJSON(&ChatWSResponse{Type: "done"})
+	return ollamaTools, toolToServer, nil
 }

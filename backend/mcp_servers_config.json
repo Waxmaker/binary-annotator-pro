@@ -1,0 +1,20 @@
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "enabled": true
+    },
+    {
+      "name": "ReverseTool",
+      "enabled": true
+    },
+    {
+      "name": "Network Access",
+      "enabled": false
+    },
+    {
+      "name": "Sqlite",
+      "enabled": true
+    }
+  ]
+}
