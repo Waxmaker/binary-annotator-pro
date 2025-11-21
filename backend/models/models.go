@@ -195,3 +195,20 @@ type DecompressedFile struct {
 	Size           int64  `json:"size"`
 	Data           []byte `gorm:"type:blob" json:"-"`
 }
+
+// RAGDocument stores metadata for documents indexed in the RAG service
+type RAGDocument struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	UserID      string `gorm:"index;not null" json:"user_id"`      // User who uploaded the file
+	FileName    string `gorm:"not null" json:"file_name"`          // Original filename
+	FileType    string `json:"file_type"`                          // pdf, txt, md, etc.
+	FileSize    int64  `json:"file_size"`                          // File size in bytes
+	RAGDocID    uint   `json:"rag_doc_id"`                         // Document ID in RAG service
+	ChunkCount  int    `json:"chunk_count"`                        // Number of chunks created
+	Status      string `gorm:"default:'indexed'" json:"status"`    // indexed, error, deleted
+	ErrorMsg    string `json:"error_msg,omitempty"`                // Error message if failed
+}

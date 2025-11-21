@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with PGVector extension
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: rag-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rag_db}
+      POSTGRES_USER: ${POSTGRES_USER:-rag_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag_password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rag_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rag-network
+
+  # RAG Service
+  rag-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-service
+    environment:
+      # Database configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-rag_db}
+      DB_USER: ${POSTGRES_USER:-rag_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-rag_password}
+
+      # Service configuration
+      RAG_PORT: 3003
+
+      # Ollama configuration (configurable via API)
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+
+      # Chunking configuration
+      CHUNK_SIZE: ${CHUNK_SIZE:-512}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-50}
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+volumes:
+  pgvector_data:
+
+networks:
+  rag-network:
+    driver: bridge

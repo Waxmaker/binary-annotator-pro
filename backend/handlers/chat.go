@@ -18,6 +18,7 @@ import (
 type ChatHandler struct {
 	db                *config.DB
 	mcpDockerHandler  *MCPDockerHandler
+	ragService        *services.RAGService
 	approvalChannels  map[uint]chan bool // Map session ID to approval channel
 }
 
@@ -26,6 +27,7 @@ func NewChatHandler(db *config.DB) *ChatHandler {
 	return &ChatHandler{
 		db:                db,
 		mcpDockerHandler:  NewMCPDockerHandler(),
+		ragService:        services.NewRAGService("http://localhost:3003"),
 		approvalChannels:  make(map[uint]chan bool),
 	}
 }
@@ -46,6 +48,7 @@ type ChatWSMessage struct {
 	FileID       *uint                     `json:"file_id,omitempty"`
 	Messages     []services.ChatMessageReq `json:"messages,omitempty"`
 	ToolApproved *bool                     `json:"tool_approved,omitempty"` // For tool approval responses
+	RAGEnabled   bool                      `json:"rag_enabled"`              // Whether RAG context should be used
 }
 
 // ChatWSResponse represents WebSocket response
@@ -339,6 +342,26 @@ When analyzing files:
 		})
 	}
 
+	// Inject RAG context if enabled
+	if msg.RAGEnabled {
+		log.Printf("RAG is enabled, searching for relevant context...")
+		ragResp, err := ch.ragService.Search(msg.Message, nil, 2, 0.5)
+		if err != nil {
+			log.Printf("Warning: RAG search failed: %v", err)
+		} else if ragResp != nil && len(ragResp.Results) > 0 {
+			log.Printf("Found %d relevant RAG results", len(ragResp.Results))
+			ragContext := services.FormatRAGContext(ragResp.Results)
+
+			// Inject RAG context as a system message before the user's current message
+			chatMessages = append(chatMessages, services.ChatMessageReq{
+				Role:    "system",
+				Content: ragContext,
+			})
+		} else {
+			log.Printf("No relevant RAG results found")
+		}
+	}
+
 	// Stream response from Ollama with tool calling support
 	chatService := services.NewChatService(settings.OllamaURL)
 
@@ -348,6 +371,7 @@ When analyzing files:
 		var fullResponse string
 		var toolCalls []services.ToolCall
 
+		log.Printf("Starting Ollama streaming with %d messages...", len(chatMessages))
 		err := chatService.StreamChatWithTools(services.ChatRequest{
 			Model:    settings.OllamaModel,
 			Messages: chatMessages,
@@ -370,6 +394,7 @@ When analyzing files:
 
 			return nil
 		})
+		log.Printf("Ollama streaming completed. fullResponse length: %d, toolCalls: %d", len(fullResponse), len(toolCalls))
 
 		if err != nil {
 			log.Printf("Chat stream error: %v", err)
@@ -390,6 +415,25 @@ When analyzing files:
 			}
 			if err := ch.db.GormDB.Create(&assistantMsg).Error; err != nil {
 				log.Printf("Failed to save assistant message: %v", err)
+			}
+
+			// Index conversation in RAG (asynchronously to not block response)
+			if msg.RAGEnabled {
+				go func() {
+					// Create a conversation exchange document for RAG
+					conversationText := fmt.Sprintf("User: %s\n\nAssistant: %s", msg.Message, fullResponse)
+					title := fmt.Sprintf("Chat - Session %d", *msg.SessionID)
+					metadata := map[string]string{
+						"user_id":    msg.UserID,
+						"session_id": fmt.Sprintf("%d", *msg.SessionID),
+					}
+
+					if err := ch.ragService.IndexDocument("chat", title, conversationText, fmt.Sprintf("session_%d", *msg.SessionID), metadata); err != nil {
+						log.Printf("Warning: Failed to index conversation in RAG: %v", err)
+					} else {
+						log.Printf("Successfully indexed conversation in RAG")
+					}
+				}()
 			}
 
 			// Send done signal

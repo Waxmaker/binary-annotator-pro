@@ -50,6 +50,7 @@ func InitDB(path string) (*DB, error) {
 		&models.CompressionAnalysis{},
 		&models.CompressionResult{},
 		&models.DecompressedFile{},
+		&models.RAGDocument{},
 	); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}

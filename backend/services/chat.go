@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -98,10 +99,15 @@ func (s *ChatService) StreamChatWithTools(req ChatRequest, callback StreamCallba
 		return fmt.Errorf("ollama error: %s - %s", resp.Status, string(body))
 	}
 
+	log.Printf("Ollama responded with status %d, starting to read stream...", resp.StatusCode)
+
 	// Read streaming response line by line
 	scanner := bufio.NewScanner(resp.Body)
+	lineNum := 0
 	for scanner.Scan() {
 		line := scanner.Text()
+		lineNum++
+		log.Printf("Ollama stream line %d: %s", lineNum, line)
 		if line == "" {
 			continue
 		}
@@ -118,7 +124,15 @@ func (s *ChatService) StreamChatWithTools(req ChatRequest, callback StreamCallba
 		}
 
 		if err := json.Unmarshal([]byte(line), &streamResp); err != nil {
+			log.Printf("Failed to parse Ollama stream line %d: %v\nLine: %s", lineNum, err, line)
 			continue // Skip malformed lines
+		}
+
+		if len(streamResp.Message.ToolCalls) > 0 {
+			log.Printf("Received %d tool calls from Ollama", len(streamResp.Message.ToolCalls))
+		}
+		if streamResp.Message.Content != "" {
+			log.Printf("Received content chunk: %d chars", len(streamResp.Message.Content))
 		}
 
 		// Build response
@@ -137,6 +151,8 @@ func (s *ChatService) StreamChatWithTools(req ChatRequest, callback StreamCallba
 			break
 		}
 	}
+
+	log.Printf("Finished reading Ollama stream. Total lines read: %d", lineNum)
 
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("read stream: %w", err)

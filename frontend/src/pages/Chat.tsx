@@ -29,7 +29,10 @@ import {
   Moon,
   Settings,
   Sparkles,
+  Database,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { fetchBinaryList } from "@/lib/api";
 import { SettingsDialog } from "@/components/SettingsDialog";
@@ -87,6 +90,11 @@ const Chat = () => {
     arguments: Record<string, any>;
     server: string;
   } | null>(null);
+  const [ragEnabled, setRagEnabled] = useState(() => {
+    // Load RAG preference from localStorage
+    const saved = localStorage.getItem('ragEnabled');
+    return saved !== null ? saved === 'true' : false;
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -380,7 +388,7 @@ const Chat = () => {
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    // Send to backend with optional file context
+    // Send to backend with optional file context and RAG preference
     ws.send(
       JSON.stringify({
         type: "message",
@@ -388,6 +396,7 @@ const Chat = () => {
         session_id: currentSessionId,
         message: input.trim(),
         file_name: selectedFile, // Include selected binary file for context
+        rag_enabled: ragEnabled, // Include RAG preference
       }),
     );
 
@@ -412,6 +421,12 @@ const Chat = () => {
     } else {
       setShowCommandSuggestions(false);
     }
+  };
+
+  const toggleRAG = (enabled: boolean) => {
+    setRagEnabled(enabled);
+    localStorage.setItem('ragEnabled', enabled.toString());
+    toast.success(enabled ? "RAG enabled" : "RAG disabled");
   };
 
   const handleCommandSelect = (command: string) => {
@@ -566,6 +581,32 @@ const Chat = () => {
               </span>
             </div>
           )}
+
+          {/* RAG Toggle */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 px-3 py-1 border border-gray-200 dark:border-gray-700 rounded-md">
+                  <Database className={`h-4 w-4 ${ragEnabled ? 'text-green-500' : 'text-gray-400'}`} />
+                  <Label htmlFor="rag-toggle" className="text-xs font-medium cursor-pointer">
+                    RAG
+                  </Label>
+                  <Switch
+                    id="rag-toggle"
+                    checked={ragEnabled}
+                    onCheckedChange={toggleRAG}
+                    className="scale-75"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Toggle Retrieval-Augmented Generation</p>
+                <p className="text-xs text-muted-foreground">
+                  {ragEnabled ? "RAG is enabled - context from documents" : "RAG is disabled"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <Button
             variant="ghost"
