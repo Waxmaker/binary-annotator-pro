@@ -1,32 +1,24 @@
-FROM golang:1.23-alpine AS builder
+# Use Python 3.10+ for compatibility with modern type hints
+FROM python:3.10-slim
 
+# Set the working directory
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache git
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
+# Copy the requirements file and install dependencies FIRST
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
-COPY . .
+# Copy your source code
+COPY src/ /app/src/
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o rag-service .
+# Create directories for uploads and chroma_db
+RUN mkdir -p /app/uploads /app/chroma_db
 
-# Final stage
-FROM alpine:latest
-
-RUN apk --no-cache add ca-certificates
-
-WORKDIR /root/
-
-# Copy the binary from builder
-COPY --from=builder /app/rag-service .
-
-# Expose port
+# Expose the port
 EXPOSE 3003
 
-# Run the service
-CMD ["./rag-service"]
+# Command to run the application using uvicorn
+CMD ["uvicorn", "src.rag_langchain_microservice:app", "--host", "0.0.0.0", "--port", "3003"]
