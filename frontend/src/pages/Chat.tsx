@@ -19,6 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Activity,
   Send,
   Plus,
@@ -31,6 +36,7 @@ import {
   Sparkles,
   Database,
   FileText,
+  ChevronDown,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -119,6 +125,16 @@ const Chat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, streamingMessage]);
+
+  // Auto-focus input when session changes or component mounts
+  useEffect(() => {
+    if (currentSessionId && inputRef.current) {
+      // Small delay to ensure the input is rendered
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [currentSessionId]);
 
   const stopResizing = () => {
     setIsResizing(false);
@@ -251,14 +267,15 @@ const Chat = () => {
 
       case "session_created":
         setCurrentSessionId(data.session_id);
+        // Optimistically add new session to the list
+        const newSession: ChatSession = {
+          id: data.session_id,
+          title: data.title || "New Chat",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        setSessions((prev) => [newSession, ...prev]);
         loadSession(data.session_id);
-        // Refresh session list
-        ws?.send(
-          JSON.stringify({
-            type: "list_sessions",
-            user_id: userID,
-          }),
-        );
         break;
 
       case "history":
@@ -585,49 +602,79 @@ const Chat = () => {
             </div>
           )}
 
-          {/* RAG Toggle */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 px-3 py-1 border border-gray-200 dark:border-gray-700 rounded-md">
-                  <Database className={`h-4 w-4 ${ragEnabled ? 'text-green-500' : 'text-gray-400'}`} />
-                  <Label htmlFor="rag-toggle" className="text-xs font-medium cursor-pointer">
-                    RAG
-                  </Label>
+          {/* RAG Controls - Unified Popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-2 px-3 border-gray-200 dark:border-gray-700"
+              >
+                <Database className={`h-4 w-4 ${ragEnabled ? 'text-green-500 animate-pulse' : 'text-gray-400'}`} />
+                <span className="text-xs font-medium">RAG</span>
+                <div className={`h-1.5 w-1.5 rounded-full ${ragEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-0" align="end">
+              <div className="p-4 space-y-4">
+                {/* Header */}
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-800">
+                  <Database className="h-5 w-5 text-primary" />
+                  <div>
+                    <h3 className="font-semibold text-sm">RAG Configuration</h3>
+                    <p className="text-xs text-muted-foreground">Retrieval-Augmented Generation</p>
+                  </div>
+                </div>
+
+                {/* RAG Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-md ${ragEnabled ? 'bg-green-100 dark:bg-green-950' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                      <Database className={`h-4 w-4 ${ragEnabled ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} />
+                    </div>
+                    <div>
+                      <Label htmlFor="rag-popover-toggle" className="text-sm font-medium cursor-pointer">
+                        Enable RAG
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {ragEnabled ? 'Using document context' : 'Disabled'}
+                      </p>
+                    </div>
+                  </div>
                   <Switch
-                    id="rag-toggle"
+                    id="rag-popover-toggle"
                     checked={ragEnabled}
                     onCheckedChange={toggleRAG}
-                    className="scale-75"
                   />
                 </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Toggle Retrieval-Augmented Generation</p>
-                <p className="text-xs text-muted-foreground">
-                  {ragEnabled ? "RAG is enabled - context from documents" : "RAG is disabled"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRagManagerOpen(true)}
-                  className="h-8 w-8 p-0"
-                >
-                  <FileText className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Manage RAG Documents</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                {/* Document Manager */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-muted-foreground">Documents</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRagManagerOpen(true)}
+                    className="w-full justify-start gap-2 h-9"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>Manage RAG Documents</span>
+                  </Button>
+                </div>
+
+                {/* Status Info */}
+                <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className={`h-2 w-2 rounded-full ${ragEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                    <span>
+                      {ragEnabled ? 'RAG service active' : 'RAG service inactive'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
 
           <Button
             variant="ghost"

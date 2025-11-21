@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# RAG Data
+chroma_db/
+uploads/
+*.db
+*.sqlite3
+
+# Test files
+sample.txt
+test.sh
+
+# Logs
+*.log

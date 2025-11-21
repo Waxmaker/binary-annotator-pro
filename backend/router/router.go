@@ -92,4 +92,5 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.GET("/rag/documents", ragFilesHandler.ListDocuments)
 	e.DELETE("/rag/documents/:id", ragFilesHandler.DeleteDocument)
 	e.GET("/rag/stats", ragFilesHandler.GetDocumentStats)
+	e.POST("/rag/search", ragFilesHandler.SearchRAG)
 }

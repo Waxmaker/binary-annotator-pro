@@ -213,6 +213,42 @@ func (h *RAGFilesHandler) GetDocumentStats(c echo.Context) error {
 	return c.JSON(http.StatusOK, stats)
 }
 
+// SearchRAG performs a semantic search in the RAG service
+func (h *RAGFilesHandler) SearchRAG(c echo.Context) error {
+	// Parse request body
+	var req struct {
+		Query      string   `json:"query"`
+		Type       []string `json:"type,omitempty"`
+		MaxResults int      `json:"max_results,omitempty"`
+		MinScore   float64  `json:"min_score,omitempty"`
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	if req.Query == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "query is required"})
+	}
+
+	// Set defaults
+	if req.MaxResults == 0 {
+		req.MaxResults = 5
+	}
+	if req.MinScore == 0 {
+		req.MinScore = 0.3
+	}
+
+	// Call RAG service
+	searchResp, err := h.ragService.Search(req.Query, req.Type, req.MaxResults, req.MinScore)
+	if err != nil {
+		log.Printf("RAG search failed: %v", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "search failed"})
+	}
+
+	return c.JSON(http.StatusOK, searchResp)
+}
+
 // Helper functions
 
 func isValidFileType(ext string) bool {
