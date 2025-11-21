@@ -676,6 +676,35 @@ const Chat = () => {
             </PopoverContent>
           </Popover>
 
+          {/* MCP Settings Button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSettingsMcpOpen(true)}
+                  className="h-8 w-8 p-0 relative"
+                >
+                  <Settings className="h-4 w-4" />
+                  {dockerStats && dockerStats.serverCount > 0 && (
+                    <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary flex items-center justify-center">
+                      <span className="text-[8px] font-bold text-white">{dockerStats.serverCount}</span>
+                    </div>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>MCP Settings</p>
+                {dockerStats && dockerStats.serverCount > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {dockerStats.serverCount} server(s) active
+                  </p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <Button
             variant="ghost"
             size="sm"
