@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 // RAGService handles communication with the RAG service
@@ -48,7 +49,9 @@ func NewRAGService(baseURL string) *RAGService {
 	}
 	return &RAGService{
 		baseURL: baseURL,
-		client:  &http.Client{},
+		client: &http.Client{
+			Timeout: 60 * time.Second, // 60 second timeout for embedding generation
+		},
 	}
 }
 
@@ -111,30 +114,79 @@ func (rs *RAGService) HealthCheck() error {
 
 // RAGIndexRequest represents a request to index a document
 type RAGIndexRequest struct {
-	Type     string            `json:"type"`
-	Title    string            `json:"title"`
-	Content  string            `json:"content"`
-	Source   string            `json:"source"`
-	Metadata map[string]string `json:"metadata,omitempty"`
+	Type          string            `json:"type"`
+	Title         string            `json:"title"`
+	Content       string            `json:"content"`
+	Source        string            `json:"source"`
+	Metadata      map[string]string `json:"metadata,omitempty"`
+	ChunkTokens   int               `json:"chunk_tokens,omitempty"`
+	OverlapTokens int               `json:"overlap_tokens,omitempty"`
+}
+
+// RAGIndexResponse represents the response from indexing a document
+type RAGIndexResponse struct {
+	DocumentID uint `json:"document_id"`
+	ChunkCount int  `json:"chunk_count"`
+}
+
+// RAGIndexResponseActual represents the actual response from RAG service
+type RAGIndexResponseActual struct {
+	ID     uint                 `json:"id"`
+	Chunks []map[string]interface{} `json:"chunks"`
 }
 
 // IndexDocument indexes a document in the RAG service
-func (rs *RAGService) IndexDocument(docType, title, content, source string, metadata map[string]string) error {
+func (rs *RAGService) IndexDocument(docType, title, content, source string, metadata map[string]string, chunkTokens, overlapTokens int) (*RAGIndexResponse, error) {
 	reqBody := RAGIndexRequest{
-		Type:     docType,
-		Title:    title,
-		Content:  content,
-		Source:   source,
-		Metadata: metadata,
+		Type:          docType,
+		Title:         title,
+		Content:       content,
+		Source:        source,
+		Metadata:      metadata,
+		ChunkTokens:   chunkTokens,
+		OverlapTokens: overlapTokens,
 	}
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	url := fmt.Sprintf("%s/index/document", rs.baseURL)
 	resp, err := rs.client.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call RAG API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("RAG API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	var actualResp RAGIndexResponseActual
+	if err := json.NewDecoder(resp.Body).Decode(&actualResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Convert to expected format
+	indexResp := &RAGIndexResponse{
+		DocumentID: actualResp.ID,
+		ChunkCount: len(actualResp.Chunks),
+	}
+
+	return indexResp, nil
+}
+
+// DeleteDocument deletes a document from the RAG service
+func (rs *RAGService) DeleteDocument(documentID uint) error {
+	url := fmt.Sprintf("%s/document/%d", rs.baseURL, documentID)
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := rs.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to call RAG API: %w", err)
 	}
@@ -149,24 +201,22 @@ func (rs *RAGService) IndexDocument(docType, title, content, source string, meta
 }
 
 // FormatRAGContext formats the search results into a context string for LLM
+// Following Ollama's official RAG pattern
 func FormatRAGContext(results []RAGSearchResult) string {
 	if len(results) == 0 {
 		return ""
 	}
 
 	var context bytes.Buffer
-	context.WriteString("\n\n**Context from previous conversations:**\n")
 
 	for i, result := range results {
-		// Limit content to 200 characters to reduce context size
+		// Limit content to 500 characters to provide good context
 		content := result.Content
-		if len(content) > 200 {
-			content = content[:200] + "..."
+		if len(content) > 500 {
+			content = content[:500] + "..."
 		}
-		context.WriteString(fmt.Sprintf("%d. %s\n", i+1, content))
+		context.WriteString(fmt.Sprintf("Document %d (from %s):\n%s\n\n", i+1, result.Title, content))
 	}
-
-	context.WriteString("\nUse this context if relevant to answer the question.\n")
 
 	return context.String()
 }

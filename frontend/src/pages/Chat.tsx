@@ -30,6 +30,7 @@ import {
   Settings,
   Sparkles,
   Database,
+  FileText,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -37,6 +38,7 @@ import { toast } from "sonner";
 import { fetchBinaryList } from "@/lib/api";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { SettingsMcp } from "@/components/SettingsMcp";
+import { RAGFileManager } from "@/components/RAGFileManager";
 import { useAISettings } from "@/hooks/useAISettings";
 
 interface ChatMessage {
@@ -85,6 +87,7 @@ const Chat = () => {
   const [isResizing, setIsResizing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsMcpOpen, setSettingsMcpOpen] = useState(false);
+  const [ragManagerOpen, setRagManagerOpen] = useState(false);
   const [pendingToolApproval, setPendingToolApproval] = useState<{
     tool_name: string;
     arguments: Record<string, any>;
@@ -608,6 +611,24 @@ const Chat = () => {
             </Tooltip>
           </TooltipProvider>
 
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRagManagerOpen(true)}
+                  className="h-8 w-8 p-0"
+                >
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Manage RAG Documents</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <Button
             variant="ghost"
             size="sm"
@@ -943,6 +964,10 @@ const Chat = () => {
       <SettingsMcp
         open={settingsMcpOpen}
         onOpenChange={setSettingsMcpOpen}
+      />
+      <RAGFileManager
+        open={ragManagerOpen}
+        onOpenChange={setRagManagerOpen}
       />
     </div>
   );

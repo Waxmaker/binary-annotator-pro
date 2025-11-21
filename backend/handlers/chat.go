@@ -342,25 +342,32 @@ When analyzing files:
 		})
 	}
 
-	// Inject RAG context if enabled
+	// Prepare user message with RAG context if enabled (following Ollama's official RAG pattern)
+	userMessage := msg.Message
 	if msg.RAGEnabled {
 		log.Printf("RAG is enabled, searching for relevant context...")
-		ragResp, err := ch.ragService.Search(msg.Message, nil, 2, 0.5)
+		ragResp, err := ch.ragService.Search(msg.Message, nil, 5, 0.3)
 		if err != nil {
 			log.Printf("Warning: RAG search failed: %v", err)
 		} else if ragResp != nil && len(ragResp.Results) > 0 {
 			log.Printf("Found %d relevant RAG results", len(ragResp.Results))
 			ragContext := services.FormatRAGContext(ragResp.Results)
+			log.Printf("RAG Context generated (length: %d bytes)", len(ragContext))
 
-			// Inject RAG context as a system message before the user's current message
-			chatMessages = append(chatMessages, services.ChatMessageReq{
-				Role:    "system",
-				Content: ragContext,
-			})
+			// Combine RAG data with user prompt following Ollama's pattern:
+			// "Using this data: {data}. Respond to this prompt: {input}"
+			userMessage = fmt.Sprintf("Using this data:\n\n%s\nRespond to this prompt: %s", ragContext, msg.Message)
+			log.Printf("Enhanced user message with RAG context (total length: %d bytes)", len(userMessage))
 		} else {
-			log.Printf("No relevant RAG results found")
+			log.Printf("No relevant RAG results found (query: %s)", msg.Message)
 		}
 	}
+
+	// Add current user message (with RAG context if enabled)
+	chatMessages = append(chatMessages, services.ChatMessageReq{
+		Role:    "user",
+		Content: userMessage,
+	})
 
 	// Stream response from Ollama with tool calling support
 	chatService := services.NewChatService(settings.OllamaURL)
@@ -428,10 +435,10 @@ When analyzing files:
 						"session_id": fmt.Sprintf("%d", *msg.SessionID),
 					}
 
-					if err := ch.ragService.IndexDocument("chat", title, conversationText, fmt.Sprintf("session_%d", *msg.SessionID), metadata); err != nil {
+					if resp, err := ch.ragService.IndexDocument("chat", title, conversationText, fmt.Sprintf("session_%d", *msg.SessionID), metadata, 256, 50); err != nil {
 						log.Printf("Warning: Failed to index conversation in RAG: %v", err)
 					} else {
-						log.Printf("Successfully indexed conversation in RAG")
+						log.Printf("Successfully indexed conversation in RAG (ID: %d, Chunks: %d)", resp.DocumentID, resp.ChunkCount)
 					}
 				}()
 			}

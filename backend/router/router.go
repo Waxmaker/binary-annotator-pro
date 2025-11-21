@@ -85,4 +85,11 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.POST("/mcp/docker/servers/:name/stop", mcpDockerHandler.StopMCPServer)
 	e.POST("/mcp/docker/servers/:name/toggle", mcpDockerHandler.ToggleMCPDockerServer)
 	e.POST("/mcp/docker/servers/:name/call", mcpDockerHandler.CallMCPTool)
+
+	// RAG Document Management
+	ragFilesHandler := handlers.NewRAGFilesHandler(db)
+	e.POST("/rag/upload", ragFilesHandler.UploadDocument)
+	e.GET("/rag/documents", ragFilesHandler.ListDocuments)
+	e.DELETE("/rag/documents/:id", ragFilesHandler.DeleteDocument)
+	e.GET("/rag/stats", ragFilesHandler.GetDocumentStats)
 }
