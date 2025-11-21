@@ -15,28 +15,6 @@ FROM alpine:3.20
 
 WORKDIR /app
 
-# Install Python + build tools
-RUN apk add --no-cache \
-  python3 \
-  py3-pip \
-  py3-virtualenv \
-  py3-setuptools \
-  py3-wheel \
-  gcc \
-  musl-dev \
-  python3-dev \
-  sqlite-libs
-
-# Create a Python virtual environment
-RUN python3 -m venv /app/venv
-
-# Activate venv and install deps
-COPY ./mcp-server/requirements.txt .
-RUN /app/venv/bin/pip install --no-cache-dir -r requirements.txt
-
-# Copy MCP server code
-COPY ./mcp-server/binary_annotator_mcp.py .
-
 # Copy Go binary
 COPY --from=builder /app/binary-annotator-pro .
 
@@ -45,10 +23,9 @@ RUN mkdir -p /app/data
 
 # ENV variables
 ENV BINARY_ANNOTATOR_API_URL=http://backend:3000
+ENV RAG_API_URL=http://rag-service:3003
+ENV MCP_MANAGER_URL=http://mcp-manager:8080
 ENV OLLAMA_URL=http://host.docker.internal:11434
-
-# Add venv to PATH so the Go process can call python + libs
-ENV PATH="/app/venv/bin:$PATH"
 
 EXPOSE 3000
 

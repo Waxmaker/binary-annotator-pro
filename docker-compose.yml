@@ -46,7 +46,7 @@ services:
       dockerfile: Dockerfile
     container_name: binary-annotator-frontend
     ports:
-      - "8080:80"
+      - "8081:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -54,6 +54,55 @@ services:
       - binary-annotator-network
     environment:
       - VITE_API_URL=http://localhost:3000
+
+  # RAG service
+  rag-service:
+    build:
+      context: ./rag-service/
+      dockerfile: Dockerfile
+    container_name: rag-service-langchain
+    ports:
+      - "3003:3003"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./rag-service/uploads:/app/uploads
+      - ./rag-service/chroma_db:/app/chroma_db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - binary-annotator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+  # MCP Docker Manager - manages MCP server containers
+  mcp-manager:
+    build:
+      context: ./mcp-docker-manager/manager
+      dockerfile: Dockerfile
+    container_name: mcp-docker-manager
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount Docker socket to allow manager to control containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Share data directory with MCP servers
+      - ./mcp-docker-manager/data:/data
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - binary-annotator-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 networks:
   binary-annotator-network:

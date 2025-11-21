@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -45,7 +46,7 @@ type RAGSearchResponse struct {
 // NewRAGService creates a new RAG service client
 func NewRAGService(baseURL string) *RAGService {
 	if baseURL == "" {
-		baseURL = "http://localhost:3003"
+		baseURL = os.Getenv("RAG_API_URL")
 	}
 	return &RAGService{
 		baseURL: baseURL,
@@ -131,7 +132,7 @@ type RAGIndexResponse struct {
 
 // RAGIndexResponseActual represents the actual response from RAG service
 type RAGIndexResponseActual struct {
-	ID     uint                 `json:"id"`
+	ID     uint                     `json:"id"`
 	Chunks []map[string]interface{} `json:"chunks"`
 }
 

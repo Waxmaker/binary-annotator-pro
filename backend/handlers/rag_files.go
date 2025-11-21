@@ -30,7 +30,7 @@ type RAGFilesHandler struct {
 func NewRAGFilesHandler(db *config.DB) *RAGFilesHandler {
 	return &RAGFilesHandler{
 		db:         db,
-		ragService: services.NewRAGService("http://localhost:3003"),
+		ragService: services.NewRAGService(""),
 	}
 }
 
@@ -42,7 +42,7 @@ func (h *RAGFilesHandler) UploadDocument(c echo.Context) error {
 	}
 
 	// Parse chunk configuration parameters
-	chunkTokens := 256 // Default
+	chunkTokens := 256  // Default
 	overlapTokens := 50 // Default
 	if ct := c.QueryParam("chunk_tokens"); ct != "" {
 		if parsed, err := strconv.Atoi(ct); err == nil && parsed > 0 {
