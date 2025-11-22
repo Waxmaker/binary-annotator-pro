@@ -39,6 +39,15 @@ type ToolApprovalRequest struct {
 	Server    string                 `json:"server"`
 }
 
+// HexSelection represents hexadecimal byte selection from the hex viewer
+type HexSelection struct {
+	Offset   int      `json:"offset"`    // Starting offset in bytes
+	Size     int      `json:"size"`      // Size of selection in bytes
+	Hex      string   `json:"hex"`       // Hexadecimal representation (space-separated)
+	ASCII    string   `json:"ascii"`     // ASCII representation (filtered to printable chars)
+	RawBytes []int    `json:"raw_bytes"` // Raw byte values as integers
+}
+
 // ChatWSMessage represents WebSocket messages for chat
 type ChatWSMessage struct {
 	Type         string                    `json:"type"` // "message", "history", "new_session", "load_session", "tool_approval"
@@ -49,6 +58,7 @@ type ChatWSMessage struct {
 	Messages     []services.ChatMessageReq `json:"messages,omitempty"`
 	ToolApproved *bool                     `json:"tool_approved,omitempty"` // For tool approval responses
 	RAGEnabled   bool                      `json:"rag_enabled"`             // Whether RAG context should be used
+	HexSelection *HexSelection             `json:"hex_selection,omitempty"` // Hex selection for analysis
 }
 
 // ChatWSResponse represents WebSocket response
@@ -528,8 +538,31 @@ Next steps : lire les 128 premiers octets du fichier pour confirmer la structure
 		})
 	}
 
-	// Prepare user message with RAG context if enabled (following Ollama's official RAG pattern)
+	// Prepare user message with hex selection and RAG context if enabled
 	userMessage := msg.Message
+
+	// Add hex selection context if available
+	if msg.HexSelection != nil {
+		log.Printf("Hex selection provided: offset=0x%X, size=%d bytes", msg.HexSelection.Offset, msg.HexSelection.Size)
+
+		// Format hex selection context for the AI
+		hexContext := fmt.Sprintf(`HEX SELECTION CONTEXT:
+Selected bytes at offset 0x%X (size: %d bytes):
+Hex: %s
+ASCII: %s
+Raw bytes: %v
+
+Please analyze this hex selection in the context of the user's question.`,
+			msg.HexSelection.Offset,
+			msg.HexSelection.Size,
+			msg.HexSelection.Hex,
+			msg.HexSelection.ASCII,
+			msg.HexSelection.RawBytes)
+
+		userMessage = fmt.Sprintf("%s\n\n%s", hexContext, msg.Message)
+		log.Printf("Enhanced user message with hex selection context (total length: %d bytes)", len(userMessage))
+	}
+
 	if msg.RAGEnabled {
 		log.Printf("RAG is enabled, searching for relevant context...")
 		ragResp, err := ch.ragService.Search(msg.Message, nil, 5, 0.18)
@@ -540,9 +573,9 @@ Next steps : lire les 128 premiers octets du fichier pour confirmer la structure
 			ragContext := services.FormatRAGContext(ragResp.Results)
 			log.Printf("RAG Context generated (length: %d bytes)", len(ragContext))
 
-			// Combine RAG data with user prompt following Ollama's pattern:
-			// "Using this data: {data}. Respond to this prompt: {input}"
-			userMessage = fmt.Sprintf("Using this data:\n\n%s\nRespond to this prompt: %s", ragContext, msg.Message)
+			// Combine hex selection + RAG data with user prompt:
+			// "Using this data: {data}. {hex_context}. Respond to this prompt: {input}"
+			userMessage = fmt.Sprintf("Using this data:\n\n%s\n\nRespond to this prompt: %s", ragContext, userMessage)
 			log.Printf("Enhanced user message with RAG context (total length: %d bytes)", len(userMessage))
 		} else {
 			log.Printf("No relevant RAG results found (query: %s)", msg.Message)
