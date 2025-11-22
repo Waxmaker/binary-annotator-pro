@@ -19,7 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Upload, Trash2, FileText, File as FileIcon, X, Search, Sparkles, MessageSquare } from "lucide-react";
+import {
+  Upload,
+  Trash2,
+  FileText,
+  File as FileIcon,
+  X,
+  Search,
+  Sparkles,
+  MessageSquare,
+} from "lucide-react";
 import { toast } from "sonner";
 import { getUserID } from "@/hooks/useUserID";
 
@@ -67,11 +76,11 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
 
   // Chunking configuration with defaults
   const [chunkTokens, setChunkTokens] = useState(() => {
-    const saved = localStorage.getItem('ragChunkTokens');
+    const saved = localStorage.getItem("ragChunkTokens");
     return saved ? parseInt(saved) : 512;
   });
   const [overlapTokens, setOverlapTokens] = useState(() => {
-    const saved = localStorage.getItem('ragOverlapTokens');
+    const saved = localStorage.getItem("ragOverlapTokens");
     return saved ? parseInt(saved) : 100;
   });
 
@@ -81,7 +90,8 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
   const [searching, setSearching] = useState(false);
   const [maxResults, setMaxResults] = useState(5);
   const [minScore, setMinScore] = useState(0.3);
-  const [documentTypeFilter, setDocumentTypeFilter] = useState<string>("document");
+  const [documentTypeFilter, setDocumentTypeFilter] =
+    useState<string>("document");
 
   useEffect(() => {
     if (open) {
@@ -92,7 +102,9 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
 
   const loadDocuments = async () => {
     try {
-      const response = await fetch(`${API_BASE}/rag/documents?user_id=${userID}`);
+      const response = await fetch(
+        `${API_BASE}/rag/documents?user_id=${userID}`,
+      );
       if (!response.ok) {
         throw new Error("Failed to fetch documents");
       }
@@ -121,9 +133,11 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
     const file = event.target.files?.[0];
     if (file) {
       // Validate file type
-      const ext = file.name.toLowerCase().split('.').pop();
-      if (!['txt', 'md', 'pdf'].includes(ext || '')) {
-        toast.error("Unsupported file type. Please use .txt, .md, or .pdf files");
+      const ext = file.name.toLowerCase().split(".").pop();
+      if (!["txt", "md", "pdf"].includes(ext || "")) {
+        toast.error(
+          "Unsupported file type. Please use .txt, .md, or .pdf files",
+        );
         return;
       }
 
@@ -144,8 +158,8 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
     }
 
     // Save chunking settings to localStorage
-    localStorage.setItem('ragChunkTokens', chunkTokens.toString());
-    localStorage.setItem('ragOverlapTokens', overlapTokens.toString());
+    localStorage.setItem("ragChunkTokens", chunkTokens.toString());
+    localStorage.setItem("ragOverlapTokens", overlapTokens.toString());
 
     setUploading(true);
     const formData = new FormData();
@@ -157,7 +171,7 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
         {
           method: "POST",
           body: formData,
-        }
+        },
       );
 
       if (!response.ok) {
@@ -166,13 +180,17 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
       }
 
       const result = await response.json();
-      toast.success(`File uploaded successfully! (${result.chunk_count} chunks created)`);
+      toast.success(
+        `File uploaded successfully! (${result.chunk_count} chunks created)`,
+      );
       setSelectedFile(null);
       loadDocuments();
       loadStats();
     } catch (error) {
       console.error("Error uploading file:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to upload file");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to upload file",
+      );
     } finally {
       setUploading(false);
     }
@@ -186,7 +204,7 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
     try {
       const response = await fetch(
         `${API_BASE}/rag/documents/${docId}?user_id=${userID}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
 
       if (!response.ok) {
@@ -245,7 +263,9 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
       }
     } catch (error) {
       console.error("Error searching:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to search documents");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to search documents",
+      );
     } finally {
       setSearching(false);
     }
@@ -266,11 +286,12 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>RAG Document Manager</DialogTitle>
           <DialogDescription>
-            Upload documents to enhance chat with semantic search. Supported formats: TXT, MD, PDF
+            Upload documents to enhance chat with semantic search. Supported
+            formats: TXT, MD, PDF
           </DialogDescription>
         </DialogHeader>
 
@@ -287,153 +308,180 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
           </TabsList>
 
           {/* Documents Tab */}
-          <TabsContent value="documents" className="flex-1 flex flex-col min-h-0 space-y-4 mt-4">
+          <TabsContent
+            value="documents"
+            className="flex-1 flex flex-col min-h-0 space-y-4 mt-4"
+          >
             {/* Stats */}
-        {stats && (
-          <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
-            <div>
-              <div className="text-xs text-muted-foreground">Documents</div>
-              <div className="text-2xl font-bold">{stats.total_documents}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Chunks</div>
-              <div className="text-2xl font-bold">{stats.total_chunks}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Total Size</div>
-              <div className="text-2xl font-bold">{formatFileSize(stats.total_size)}</div>
-            </div>
-          </div>
-        )}
-
-        {/* Upload Section */}
-        <div className="space-y-2">
-          <Label>Upload Document</Label>
-          <div className="flex gap-2">
-            <Input
-              type="file"
-              accept=".txt,.md,.pdf"
-              onChange={handleFileSelect}
-              disabled={uploading}
-              className="flex-1"
-            />
-            <Button
-              onClick={handleUpload}
-              disabled={!selectedFile || uploading}
-              className="gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              {uploading ? "Uploading..." : "Upload"}
-            </Button>
-          </div>
-          {selectedFile && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <FileIcon className="h-4 w-4" />
-              {selectedFile.name} ({formatFileSize(selectedFile.size)})
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedFile(null)}
-                className="h-6 w-6 p-0"
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </div>
-          )}
-
-          {/* Chunking Configuration */}
-          <div className="grid grid-cols-2 gap-4 mt-4 p-4 border rounded-lg bg-muted/30">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="chunk-tokens" className="text-xs font-medium">
-                  Chunk Size (tokens)
-                </Label>
-                <span className="text-xs text-muted-foreground font-semibold">{chunkTokens}</span>
-              </div>
-              <input
-                id="chunk-tokens"
-                type="range"
-                min="128"
-                max="2000"
-                step="64"
-                value={chunkTokens}
-                onChange={(e) => setChunkTokens(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-              />
-              <p className="text-xs text-muted-foreground">
-                128-2000 tokens • Larger = more context, fewer chunks
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="overlap-tokens" className="text-xs font-medium">
-                  Overlap (tokens)
-                </Label>
-                <span className="text-xs text-muted-foreground font-semibold">{overlapTokens}</span>
-              </div>
-              <input
-                id="overlap-tokens"
-                type="range"
-                min="0"
-                max="500"
-                step="25"
-                value={overlapTokens}
-                onChange={(e) => setOverlapTokens(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-              />
-              <p className="text-xs text-muted-foreground">
-                0-500 tokens • Higher = better context continuity
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Documents List */}
-        <div className="flex-1 min-h-0">
-          <Label>Uploaded Documents</Label>
-          <ScrollArea className="h-[300px] mt-2 border rounded-md">
-            <div className="p-4 space-y-2">
-              {documents.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  No documents uploaded yet
-                </div>
-              ) : (
-                documents.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {getFileIcon(doc.file_type)}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{doc.file_name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatFileSize(doc.file_size)} • {doc.chunk_count} chunks
-                          {doc.status === "error" && (
-                            <span className="text-destructive ml-2">Error: {doc.error_msg}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(doc.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+            {stats && (
+              <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
+                <div>
+                  <div className="text-xs text-muted-foreground">Documents</div>
+                  <div className="text-2xl font-bold">
+                    {stats.total_documents}
                   </div>
-                ))
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Chunks</div>
+                  <div className="text-2xl font-bold">{stats.total_chunks}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Total Size
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {formatFileSize(stats.total_size)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Upload Section */}
+            <div className="space-y-2">
+              <Label>Upload Document</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="file"
+                  accept=".txt,.md,.pdf"
+                  onChange={handleFileSelect}
+                  disabled={uploading}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleUpload}
+                  disabled={!selectedFile || uploading}
+                  className="gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  {uploading ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
+              {selectedFile && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <FileIcon className="h-4 w-4" />
+                  {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedFile(null)}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
+
+              {/* Chunking Configuration */}
+              <div className="grid grid-cols-2 gap-4 mt-4 p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="chunk-tokens"
+                      className="text-xs font-medium"
+                    >
+                      Chunk Size (tokens)
+                    </Label>
+                    <span className="text-xs text-muted-foreground font-semibold">
+                      {chunkTokens}
+                    </span>
+                  </div>
+                  <input
+                    id="chunk-tokens"
+                    type="range"
+                    min="128"
+                    max="2000"
+                    step="64"
+                    value={chunkTokens}
+                    onChange={(e) => setChunkTokens(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    128-2000 tokens • Larger = more context, fewer chunks
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="overlap-tokens"
+                      className="text-xs font-medium"
+                    >
+                      Overlap (tokens)
+                    </Label>
+                    <span className="text-xs text-muted-foreground font-semibold">
+                      {overlapTokens}
+                    </span>
+                  </div>
+                  <input
+                    id="overlap-tokens"
+                    type="range"
+                    min="0"
+                    max="500"
+                    step="25"
+                    value={overlapTokens}
+                    onChange={(e) => setOverlapTokens(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    0-500 tokens • Higher = better context continuity
+                  </p>
+                </div>
+              </div>
             </div>
-          </ScrollArea>
-        </div>
+
+            {/* Documents List */}
+            <div className="flex-1 min-h-0">
+              <Label>Uploaded Documents</Label>
+              <ScrollArea className="h-[300px] mt-2 border rounded-md">
+                <div className="p-4 space-y-2">
+                  {documents.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      No documents uploaded yet
+                    </div>
+                  ) : (
+                    documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {getFileIcon(doc.file_type)}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">
+                              {doc.file_name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatFileSize(doc.file_size)} •{" "}
+                              {doc.chunk_count} chunks
+                              {doc.status === "error" && (
+                                <span className="text-destructive ml-2">
+                                  Error: {doc.error_msg}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(doc.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
           </TabsContent>
 
           {/* Search Tab */}
-          <TabsContent value="search" className="flex-1 flex flex-col min-h-0 space-y-4 mt-4">
+          <TabsContent
+            value="search"
+            className="flex-1 flex flex-col min-h-0 space-y-4 mt-4"
+          >
             {/* Search Configuration */}
             <div className="space-y-4">
               <div className="space-y-2">
@@ -460,7 +508,10 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
               {/* Document Type Filter */}
               <div className="space-y-2">
                 <Label htmlFor="doc-type-filter">Document Type</Label>
-                <Select value={documentTypeFilter} onValueChange={setDocumentTypeFilter}>
+                <Select
+                  value={documentTypeFilter}
+                  onValueChange={setDocumentTypeFilter}
+                >
                   <SelectTrigger id="doc-type-filter" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -494,10 +545,15 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
               <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/30">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="max-results" className="text-xs font-medium">
+                    <Label
+                      htmlFor="max-results"
+                      className="text-xs font-medium"
+                    >
                       Max Results
                     </Label>
-                    <span className="text-xs text-muted-foreground">{maxResults}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {maxResults}
+                    </span>
                   </div>
                   <input
                     id="max-results"
@@ -519,7 +575,9 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
                     <Label htmlFor="min-score" className="text-xs font-medium">
                       Min Score
                     </Label>
-                    <span className="text-xs text-muted-foreground">{minScore.toFixed(2)}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {minScore.toFixed(2)}
+                    </span>
                   </div>
                   <input
                     id="min-score"
@@ -550,8 +608,8 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
             </div>
 
             {/* Search Results */}
-            <div className="flex-1 min-h-0">
-              <div className="flex items-center justify-between mb-2">
+            <div className="flex-1 min-h-0 flex flex-col">
+              <div className="flex items-center justify-between mb-2 flex-shrink-0">
                 <Label>Search Results</Label>
                 {searchResults.length > 0 && (
                   <span className="text-xs text-muted-foreground">
@@ -559,56 +617,62 @@ export function RAGFileManager({ open, onOpenChange }: RAGFileManagerProps) {
                   </span>
                 )}
               </div>
-              <ScrollArea className="h-[300px] border rounded-md">
-                <div className="p-4 space-y-3">
-                  {searchResults.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-8">
-                      <Search className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                      <p>No search results yet</p>
-                      <p className="text-xs mt-1">Enter a query and click Search</p>
-                    </div>
-                  ) : (
-                    searchResults.map((result, idx) => (
-                      <div
-                        key={`${result.document_id}-${result.chunk_id}-${idx}`}
-                        className="p-4 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors space-y-2"
-                      >
-                        {/* Header */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium truncate text-sm">{result.title}</h4>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {result.source}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <div className="px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
-                              {(result.score * 100).toFixed(1)}%
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="text-sm text-foreground/90 bg-background/50 p-3 rounded border">
-                          <p className="line-clamp-4">{result.content}</p>
-                        </div>
-
-                        {/* Metadata */}
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>Doc ID: {result.document_id}</span>
-                          <span>•</span>
-                          <span>Chunk: {result.chunk_id}</span>
-                          <span>•</span>
-                          <span>Type: {result.type}</span>
-                        </div>
+              <div className="flex-1 min-h-0 border rounded-md overflow-hidden">
+                <ScrollArea className="h-full">
+                  <div className="p-4 space-y-3">
+                    {searchResults.length === 0 ? (
+                      <div className="text-center text-muted-foreground py-8">
+                        <Search className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                        <p>No search results yet</p>
+                        <p className="text-xs mt-1">
+                          Enter a query and click Search
+                        </p>
                       </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
+                    ) : (
+                      searchResults.map((result, idx) => (
+                        <div
+                          key={`${result.document_id}-${result.chunk_id}-${idx}`}
+                          className="p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors space-y-2"
+                        >
+                          {/* Header */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium truncate text-sm">
+                                  {result.title}
+                                </h4>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {result.source}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
+                                {(result.score * 100).toFixed(1)}%
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="text-sm text-foreground/90 bg-background/50 p-3 rounded border">
+                            <p className="line-clamp-3">{result.content}</p>
+                          </div>
+
+                          {/* Metadata */}
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>Doc ID: {result.document_id}</span>
+                            <span>•</span>
+                            <span>Chunk: {result.chunk_id}</span>
+                            <span>•</span>
+                            <span>Type: {result.type}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
