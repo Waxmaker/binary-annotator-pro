@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useECGRenderer } from "@/hooks/useECGRenderer";
 import { EcgSettings } from "./EcgSettings";
+import { MultiLeadData } from "@/hooks/useSamples";
 
 interface EcgViewerCanvasProps {
   samples: number[];
@@ -12,6 +14,9 @@ interface EcgViewerCanvasProps {
   onZoomChange?: (zoom: number) => void;
   offset?: number;
   onOffsetChange?: (offset: number) => void;
+  multiLeadData?: MultiLeadData | null;
+  selectedLead?: number;
+  onLeadChange?: (leadIndex: number) => void;
 }
 
 export function EcgViewerCanvas({
@@ -22,6 +27,9 @@ export function EcgViewerCanvas({
   onZoomChange,
   offset = 0,
   onOffsetChange,
+  multiLeadData,
+  selectedLead = 0,
+  onLeadChange,
 }: EcgViewerCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 400 });
@@ -74,10 +82,30 @@ export function EcgViewerCanvas({
     }
   };
 
+  const handleLeadChange = (leadIndex: number) => {
+    onLeadChange?.(leadIndex);
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-panel-border bg-panel-header flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">ECG Waveform</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-semibold text-foreground">ECG Waveform</h2>
+          {multiLeadData && multiLeadData.leadNames.length > 1 && (
+            <Select value={selectedLead.toString()} onValueChange={(value) => onLeadChange?.(parseInt(value))}>
+              <SelectTrigger className="w-32 h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {multiLeadData.leadNames.map((leadName, index) => (
+                  <SelectItem key={index} value={index.toString()}>
+                    {leadName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"

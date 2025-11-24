@@ -62,9 +62,11 @@ func (h *Handler) StartCompressionAnalysis(c echo.Context) error {
 
 	// Create new analysis record
 	analysis := models.CompressionAnalysis{
-		FileID:     uint(fileID),
-		Status:     "pending",
-		TotalTests: 0,
+		FileID:      uint(fileID),
+		Status:      "pending",
+		TotalTests:  0,
+		StartOffset: startOffset,
+		Length:      length,
 	}
 
 	if err := h.db.GormDB.Create(&analysis).Error; err != nil {
@@ -554,6 +556,127 @@ func (h *Handler) AddDecompressedToFiles(c echo.Context) error {
 			"id":   newFile.ID,
 			"name": newFile.Name,
 			"size": newFile.Size,
+		},
+	})
+}
+
+// ReconstructFileWithDecompression creates a new file by replacing a compressed section with its decompressed data
+func (h *Handler) ReconstructFileWithDecompression(c echo.Context) error {
+	resultIDStr := c.Param("resultId")
+	resultID, err := strconv.ParseUint(resultIDStr, 10, 32)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid result ID",
+		})
+	}
+
+	// Get result
+	var result models.CompressionResult
+	if err := h.db.GormDB.First(&result, resultID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "result not found",
+		})
+	}
+
+	// Get analysis with file info and selection details
+	var analysis models.CompressionAnalysis
+	if err := h.db.GormDB.First(&analysis, result.AnalysisID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "analysis not found",
+		})
+	}
+
+	// Check if this was a selection-based analysis
+	if analysis.StartOffset == nil || analysis.Length == nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "this analysis was not performed on a selection, cannot reconstruct",
+		})
+	}
+
+	startOffset := *analysis.StartOffset
+	selectionLength := *analysis.Length
+
+	// Get original file
+	var originalFile models.File
+	if err := h.db.GormDB.First(&originalFile, analysis.FileID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "original file not found",
+		})
+	}
+
+	// Get decompressed data
+	var decompressedData []byte
+	if result.DecompressedFileID != nil {
+		var decompFile models.DecompressedFile
+		if err := h.db.GormDB.First(&decompFile, *result.DecompressedFileID).Error; err == nil {
+			decompressedData = decompFile.Data
+		}
+	}
+
+	// Fallback to /tmp/decompressed/ if not found in database
+	if decompressedData == nil {
+		baseFileName := originalFile.Name
+		if ext := filepath.Ext(baseFileName); ext != "" {
+			baseFileName = baseFileName[:len(baseFileName)-len(ext)]
+		}
+		tempFileName := fmt.Sprintf("/tmp/decompressed/%s.%s.decompressed", baseFileName, result.Method)
+		if fileData, err := os.ReadFile(tempFileName); err == nil {
+			decompressedData = fileData
+		}
+	}
+
+	if decompressedData == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "decompressed data not found",
+		})
+	}
+
+	// Reconstruct file: prefix + decompressed + suffix
+	var reconstructed []byte
+
+	// 1. Add bytes before selection (0 to startOffset)
+	if startOffset > 0 {
+		reconstructed = append(reconstructed, originalFile.Data[:startOffset]...)
+	}
+
+	// 2. Add decompressed data (replaces the compressed selection)
+	reconstructed = append(reconstructed, decompressedData...)
+
+	// 3. Add bytes after selection (startOffset+length to end)
+	endOffset := startOffset + selectionLength
+	if endOffset < int64(len(originalFile.Data)) {
+		reconstructed = append(reconstructed, originalFile.Data[endOffset:]...)
+	}
+
+	// Create new file with reconstructed data
+	newFileName := fmt.Sprintf("%s.%s.reconstructed", originalFile.Name, result.Method)
+	newFile := models.File{
+		Name: newFileName,
+		Size: int64(len(reconstructed)),
+		Data: reconstructed,
+	}
+
+	if err := h.db.GormDB.Create(&newFile).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to create reconstructed file",
+		})
+	}
+
+	return c.JSON(http.StatusCreated, map[string]interface{}{
+		"message": "file reconstructed successfully",
+		"file": map[string]interface{}{
+			"id":   newFile.ID,
+			"name": newFile.Name,
+			"size": newFile.Size,
+		},
+		"reconstruction_info": map[string]interface{}{
+			"original_size":       len(originalFile.Data),
+			"prefix_size":         startOffset,
+			"decompressed_size":   len(decompressedData),
+			"suffix_size":         int64(len(originalFile.Data)) - endOffset,
+			"reconstructed_size":  len(reconstructed),
+			"size_delta":          int64(len(reconstructed)) - int64(len(originalFile.Data)),
+			"compressed_replaced": fmt.Sprintf("0x%X-0x%X (0x%X bytes)", startOffset, endOffset, selectionLength),
 		},
 	})
 }

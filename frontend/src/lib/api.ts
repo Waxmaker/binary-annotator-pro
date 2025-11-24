@@ -186,18 +186,27 @@ export interface SearchResponse {
 export async function searchBinary(
   fileName: string,
   value: string,
-  type: string
+  type: string,
+  start?: number,
+  end?: number,
+  regex?: boolean
 ): Promise<SearchResponse> {
+  const body: any = {
+    file_name: fileName,
+    value,
+    type,
+  };
+
+  if (start !== undefined) body.start = start;
+  if (end !== undefined) body.end = end;
+  if (regex !== undefined) body.regex = regex;
+
   const res = await fetch(`${API_BASE_URL}/search`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      file_name: fileName,
-      value,
-      type,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {

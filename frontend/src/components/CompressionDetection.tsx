@@ -21,6 +21,7 @@ import {
   FileArchive,
   TrendingUp,
   Clock,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -250,6 +251,41 @@ export function CompressionDetection({
     } catch (error) {
       console.error("Failed to add file:", error);
       toast.error("Failed to add file to binary files");
+    }
+  };
+
+  const reconstructFileWithDecompression = async (
+    resultId: number,
+    method: string,
+  ) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/analysis/compression/result/${resultId}/reconstruct`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to reconstruct file");
+      }
+
+      const result = await response.json();
+      toast.success(
+        `Reconstructed file with ${method.toUpperCase()} decompression`,
+        {
+          description: `Size: ${(result.file.size / 1024).toFixed(1)} KB (delta: ${result.reconstruction_info.size_delta > 0 ? "+" : ""}${(result.reconstruction_info.size_delta / 1024).toFixed(1)} KB)`,
+        },
+      );
+
+      // Trigger file list refresh in the parent component
+      if (onFilesRefresh) {
+        onFilesRefresh();
+      }
+    } catch (error: any) {
+      console.error("Failed to reconstruct file:", error);
+      toast.error(error.message || "Failed to reconstruct file");
     }
   };
 
@@ -632,6 +668,25 @@ export function CompressionDetection({
                                 >
                                   <Plus className="h-3 w-3" />
                                 </Button>
+                                {analysis.start_offset !== null &&
+                                  analysis.start_offset !== undefined &&
+                                  analysis.length !== null &&
+                                  analysis.length !== undefined && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        reconstructFileWithDecompression(
+                                          result.id,
+                                          result.method,
+                                        )
+                                      }
+                                      title="Reconstruct complete file with decompressed selection"
+                                      className="bg-primary/10 hover:bg-primary/20 border-primary/30"
+                                    >
+                                      <Layers className="h-3 w-3" />
+                                    </Button>
+                                  )}
                               </div>
                             )}
                           </TableCell>

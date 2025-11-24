@@ -7,6 +7,9 @@ export interface SearchRule {
   value: string;
   color: string;
   type?: SearchType; // Default to 'string-ascii' if not specified
+  start?: number | string; // Optional start offset (hex or decimal)
+  end?: number | string; // Optional end offset (hex or decimal)
+  regex?: boolean; // Enable regex matching (for hex and string types)
 }
 
 export interface TagRule {
@@ -43,7 +46,20 @@ export function parseYamlConfig(yamlText: string): ParsedYamlResult {
         }
       });
     }
-    
+
+    // Convert hex string start/end to numbers in search rules
+    if (parsed.search) {
+      Object.keys(parsed.search).forEach(key => {
+        const search = parsed.search![key];
+        if (search.start !== undefined && typeof search.start === 'string') {
+          search.start = parseInt(search.start, 16);
+        }
+        if (search.end !== undefined && typeof search.end === 'string') {
+          search.end = parseInt(search.end, 16);
+        }
+      });
+    }
+
     return { config: parsed, error: null };
   } catch (e) {
     return {

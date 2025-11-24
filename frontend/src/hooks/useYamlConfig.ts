@@ -51,7 +51,14 @@ export function useYamlConfig(buffer: ArrayBuffer | null, fileName: string | nul
         const searchType = search.type || 'string-ascii';
 
         try {
-          const response = await searchBinary(fileName, search.value, searchType);
+          const response = await searchBinary(
+            fileName,
+            search.value,
+            searchType,
+            search.start as number | undefined,
+            search.end as number | undefined,
+            search.regex,
+          );
 
           response.matches.forEach((match) => {
             allHighlights.push({

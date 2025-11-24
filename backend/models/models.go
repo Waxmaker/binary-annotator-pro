@@ -145,6 +145,10 @@ type CompressionAnalysis struct {
 	SuccessCount int    `json:"success_count"`
 	FailedCount  int    `json:"failed_count"`
 
+	// Selection info (for partial decompression)
+	StartOffset *int64 `json:"start_offset,omitempty"` // Offset where selection starts
+	Length      *int64 `json:"length,omitempty"`       // Length of compressed selection
+
 	// Best candidate
 	BestMethod     string  `json:"best_method,omitempty"`
 	BestRatio      float64 `json:"best_ratio,omitempty"`

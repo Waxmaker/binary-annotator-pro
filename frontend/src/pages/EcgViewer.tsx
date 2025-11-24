@@ -17,11 +17,6 @@ const STORAGE_KEY = "ecg-viewer-state";
 
 const EcgViewer = () => {
   const navigate = useNavigate();
-  const { samples, timestamps, error, parseSamples, getStats } = useSamples();
-  const [selectedIndex, setSelectedIndex] = useState<number | undefined>(
-    undefined,
-  );
-
   // Load initial state from localStorage
   const loadInitialState = () => {
     try {
@@ -36,6 +31,12 @@ const EcgViewer = () => {
   };
 
   const initialState = loadInitialState();
+
+  const { samples, timestamps, multiLeadData, error, parseSamples, getStats, selectLead } = useSamples();
+  const [selectedIndex, setSelectedIndex] = useState<number | undefined>(
+    undefined,
+  );
+  const [selectedLead, setSelectedLead] = useState<number>(initialState?.selectedLead ?? 0);
 
   const [zoom, setZoom] = useState(initialState?.zoom ?? 1);
   const [offset, setOffset] = useState(initialState?.offset ?? 0);
@@ -66,6 +67,19 @@ const EcgViewer = () => {
     }
   }, []);
 
+  // Reset selected lead when new data is loaded (but respect saved state)
+  useEffect(() => {
+    if (multiLeadData && initialState?.selectedLead === undefined) {
+      setSelectedLead(0);
+    }
+  }, [multiLeadData]);
+
+  // Handle lead change
+  const handleLeadChange = (leadIndex: number) => {
+    setSelectedLead(leadIndex);
+    selectLead(leadIndex);
+  };
+
   // Save state to localStorage whenever it changes
   useEffect(() => {
     const state = {
@@ -73,13 +87,14 @@ const EcgViewer = () => {
       offset,
       settings,
       inputText,
+      selectedLead,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (err) {
       console.error("Failed to save state to localStorage:", err);
     }
-  }, [zoom, offset, settings, inputText]);
+  }, [zoom, offset, settings, inputText, selectedLead]);
 
   const stats = getStats();
 
@@ -136,6 +151,9 @@ const EcgViewer = () => {
               onZoomChange={setZoom}
               offset={offset}
               onOffsetChange={setOffset}
+              multiLeadData={multiLeadData}
+              selectedLead={selectedLead}
+              onLeadChange={handleLeadChange}
             />
           </ResizablePanel>
 
