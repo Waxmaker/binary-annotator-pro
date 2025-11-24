@@ -62,6 +62,7 @@ interface CompressionDetectionProps {
   fileName: string;
   selection?: { start: number; end: number } | null;
   currentBuffer?: ArrayBuffer | null;
+  onFilesRefresh?: () => void;
 }
 
 export function CompressionDetection({
@@ -69,6 +70,7 @@ export function CompressionDetection({
   fileName,
   selection,
   currentBuffer,
+  onFilesRefresh,
 }: CompressionDetectionProps) {
   const [analysis, setAnalysis] = useState<CompressionAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
@@ -241,8 +243,10 @@ export function CompressionDetection({
         `Added ${method.toUpperCase()} decompressed file to binary files`,
       );
 
-      // Optionally trigger a file list refresh in the parent component
-      // This would need to be implemented via a callback prop
+      // Trigger file list refresh in the parent component
+      if (onFilesRefresh) {
+        onFilesRefresh();
+      }
     } catch (error) {
       console.error("Failed to add file:", error);
       toast.error("Failed to add file to binary files");

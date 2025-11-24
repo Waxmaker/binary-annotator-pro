@@ -410,61 +410,61 @@ const Index = () => {
     setRefreshConfigList((prev) => prev + 1);
   }, []);
 
-  useEffect(() => {
-    const loadFilesFromBackend = async () => {
-      setIsLoadingFiles(true);
-      const loadingToast = toast.loading("Loading file metadata...");
+  const loadFilesFromBackend = useCallback(async () => {
+    setIsLoadingFiles(true);
+    const loadingToast = toast.loading("Loading file metadata...");
 
-      try {
-        const list = await fetchBinaryList();
+    try {
+      const list = await fetchBinaryList();
 
-        if (list.length === 0) {
-          toast.info("No files found. Upload a binary file to get started.", {
-            id: loadingToast,
-          });
-          setIsLoadingFiles(false);
-          return;
-        }
-
-        // Only load metadata (id, name, size) - NOT the actual file data!
-        // File data will be loaded on-demand in chunks
-        const loaded: FileData[] = list.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          size: item.size,
-          // No buffer - files are loaded via chunk manager on demand
-        }));
-
-        setFiles(loaded);
-
-        if (loaded.length > 0) {
-          // Check if the previously selected file still exists
-          const savedFile = localStorage.getItem("selectedBinaryFile");
-          const fileExists =
-            savedFile && loaded.some((f) => f.name === savedFile);
-
-          if (fileExists) {
-            setCurrentFile(savedFile);
-          } else {
-            // If saved file doesn't exist, select the first one
-            setCurrentFile(loaded[0].name);
-          }
-        }
-
-        toast.success(
-          `Loaded ${loaded.length} file(s) (${(loaded.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024)).toFixed(1)} MB total)`,
-          { id: loadingToast },
-        );
-      } catch (err) {
-        console.error("Failed loading binary list:", err);
-        toast.error("Failed to load files from server", { id: loadingToast });
-      } finally {
+      if (list.length === 0) {
+        toast.info("No files found. Upload a binary file to get started.", {
+          id: loadingToast,
+        });
         setIsLoadingFiles(false);
+        return;
       }
-    };
 
-    loadFilesFromBackend();
+      // Only load metadata (id, name, size) - NOT the actual file data!
+      // File data will be loaded on-demand in chunks
+      const loaded: FileData[] = list.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        size: item.size,
+        // No buffer - files are loaded via chunk manager on demand
+      }));
+
+      setFiles(loaded);
+
+      if (loaded.length > 0) {
+        // Check if the previously selected file still exists
+        const savedFile = localStorage.getItem("selectedBinaryFile");
+        const fileExists =
+          savedFile && loaded.some((f) => f.name === savedFile);
+
+        if (fileExists) {
+          setCurrentFile(savedFile);
+        } else {
+          // If saved file doesn't exist, select the first one
+          setCurrentFile(loaded[0].name);
+        }
+      }
+
+      toast.success(
+        `Loaded ${loaded.length} file(s) (${(loaded.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024)).toFixed(1)} MB total)`,
+        { id: loadingToast },
+      );
+    } catch (err) {
+      console.error("Failed loading binary list:", err);
+      toast.error("Failed to load files from server", { id: loadingToast });
+    } finally {
+      setIsLoadingFiles(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadFilesFromBackend();
+  }, [loadFilesFromBackend]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -731,6 +731,7 @@ const Index = () => {
                   fileName={currentFile || ""}
                   selection={selection}
                   currentBuffer={currentBuffer}
+                  onFilesRefresh={loadFilesFromBackend}
                 />
               </TabsContent>
             </Tabs>
