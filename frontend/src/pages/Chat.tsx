@@ -87,6 +87,7 @@ const Chat = () => {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
+  const [thinkingMessage, setThinkingMessage] = useState("");
   const [binaryFiles, setBinaryFiles] = useState<BinaryFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(() => {
     // Load from localStorage on mount (shared with Index page)
@@ -125,6 +126,7 @@ const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const streamingMessageRef = useRef("");
+  const thinkingMessageRef = useRef("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
@@ -174,7 +176,7 @@ const Chat = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingMessage]);
+  }, [messages, streamingMessage, thinkingMessage]);
 
   // Auto-focus input when session changes or component mounts
   useEffect(() => {
@@ -391,6 +393,11 @@ const Chat = () => {
         setMessages(data.messages || []);
         break;
 
+      case "thinking":
+        thinkingMessageRef.current += data.thinking;
+        setThinkingMessage(thinkingMessageRef.current);
+        break;
+
       case "chunk":
         streamingMessageRef.current += data.chunk;
         setStreamingMessage(streamingMessageRef.current);
@@ -410,6 +417,8 @@ const Chat = () => {
         }
         streamingMessageRef.current = "";
         setStreamingMessage("");
+        thinkingMessageRef.current = "";
+        setThinkingMessage("");
         setIsStreaming(false);
         break;
 
@@ -417,6 +426,7 @@ const Chat = () => {
         toast.error(data.error);
         setIsStreaming(false);
         setStreamingMessage("");
+        setThinkingMessage("");
         break;
 
       case "tool_approval_request":
@@ -447,6 +457,7 @@ const Chat = () => {
     setCurrentSessionId(sessionId);
     setMessages([]);
     setStreamingMessage("");
+    setThinkingMessage("");
 
     ws.send(
       JSON.stringify({
@@ -570,6 +581,8 @@ const Chat = () => {
     setIsStreaming(true);
     streamingMessageRef.current = "";
     setStreamingMessage("");
+    thinkingMessageRef.current = "";
+    setThinkingMessage("");
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -1081,7 +1094,7 @@ const Chat = () => {
                     ))}
 
                     {/* Typing indicator when waiting for response */}
-                    {isStreaming && !streamingMessage && (
+                    {isStreaming && !streamingMessage && !thinkingMessage && (
                       <div className="flex justify-start">
                         <div className="max-w-[80%] px-4 py-3 rounded-lg bg-transparent">
                           <div className="flex items-center gap-1">
@@ -1097,6 +1110,26 @@ const Chat = () => {
                               className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
                               style={{ animationDelay: "300ms" }}
                             />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Thinking message - Reasoning trace */}
+                    {isStreaming && thinkingMessage && (
+                      <div className="flex justify-start">
+                        <div className="max-w-[80%] px-4 py-3 rounded-lg bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 border border-purple-200 dark:border-purple-800/50 shadow-sm">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full bg-purple-500 dark:bg-purple-400 animate-pulse" />
+                              <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wide">
+                                Thinking
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-[14px] leading-relaxed whitespace-pre-wrap text-purple-900 dark:text-purple-100 italic font-light">
+                            {thinkingMessage}
+                            <span className="inline-block w-1.5 h-4 bg-purple-600 dark:bg-purple-400 animate-pulse ml-0.5" />
                           </div>
                         </div>
                       </div>
