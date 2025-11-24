@@ -55,6 +55,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface FileData {
   id?: number; // File ID from database
@@ -83,6 +84,8 @@ const Index = () => {
   );
   const [isLoadingFiles, setIsLoadingFiles] = useState(true);
   const [isDeletingFile, setIsDeletingFile] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
 
   const [currentBuffer, setCurrentBuffer] = useState<ArrayBuffer | null>(null);
   const [isLoadingBuffer, setIsLoadingBuffer] = useState(false);
@@ -229,46 +232,49 @@ const Index = () => {
     setCurrentFile(file.name);
   }, []);
 
-  const handleFileRemove = useCallback(
-    async (fileName: string) => {
-      if (!confirm(`Delete "${fileName}"?`)) return;
+  const handleFileRemove = useCallback((fileName: string) => {
+    setFileToDelete(fileName);
+    setDeleteDialogOpen(true);
+  }, []);
 
-      setIsDeletingFile(true);
-      const loadingToast = toast.loading(`Deleting ${fileName}...`);
+  const confirmFileDelete = useCallback(async () => {
+    if (!fileToDelete) return;
 
-      try {
-        const API_BASE_URL =
-          import.meta.env.VITE_API_URL || "http://localhost:3000";
+    setIsDeletingFile(true);
+    const loadingToast = toast.loading(`Deleting ${fileToDelete}...`);
 
-        // 1. Call backend DELETE
-        const res = await fetch(`${API_BASE_URL}/delete/binary/${fileName}`, {
-          method: "DELETE",
-        });
+    try {
+      const API_BASE_URL =
+        import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-        if (!res.ok) {
-          throw new Error(`Failed to delete file on server`);
-        }
+      // 1. Call backend DELETE
+      const res = await fetch(`${API_BASE_URL}/delete/binary/${fileToDelete}`, {
+        method: "DELETE",
+      });
 
-        // 2. Remove from local state
-        setFiles((prev) => prev.filter((f) => f.name !== fileName));
-
-        // 3. Clear current file if needed
-        if (currentFile === fileName) {
-          setCurrentFile(null);
-        }
-
-        toast.success(`Deleted "${fileName}"`, { id: loadingToast });
-      } catch (err: any) {
-        console.error(err);
-        toast.error(`Error deleting file: ${err.message}`, {
-          id: loadingToast,
-        });
-      } finally {
-        setIsDeletingFile(false);
+      if (!res.ok) {
+        throw new Error(`Failed to delete file on server`);
       }
-    },
-    [currentFile, setFiles, setCurrentFile],
-  );
+
+      // 2. Remove from local state
+      setFiles((prev) => prev.filter((f) => f.name !== fileToDelete));
+
+      // 3. Clear current file if needed
+      if (currentFile === fileToDelete) {
+        setCurrentFile(null);
+      }
+
+      toast.success(`Deleted "${fileToDelete}"`, { id: loadingToast });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Error deleting file: ${err.message}`, {
+        id: loadingToast,
+      });
+    } finally {
+      setIsDeletingFile(false);
+      setFileToDelete(null);
+    }
+  }, [fileToDelete, currentFile, setFiles, setCurrentFile]);
 
   const handleFileRename = useCallback(
     (oldName: string, newName: string) => {
@@ -865,6 +871,22 @@ const Index = () => {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmFileDelete}
+        title="Delete Binary File?"
+        description={
+          fileToDelete
+            ? `Are you sure you want to delete "${fileToDelete}"? This action cannot be undone.`
+            : "Are you sure you want to delete this file? This action cannot be undone."
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 };

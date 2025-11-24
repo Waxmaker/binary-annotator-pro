@@ -50,6 +50,7 @@ import { RAGFileManager } from "@/components/RAGFileManager";
 import { useAISettings } from "@/hooks/useAISettings";
 import { HexViewer } from "@/components/HexViewer";
 import { useHexSelection } from "@/hooks/useHexSelection";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface ChatMessage {
   id?: number;
@@ -122,6 +123,8 @@ const Chat = () => {
     const saved = localStorage.getItem("ragEnabled");
     return saved !== null ? saved === "true" : false;
   });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<number | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -487,22 +490,26 @@ const Chat = () => {
     setPendingToolApproval(null);
   };
 
-  const deleteSession = async (sessionId: number, e: React.MouseEvent) => {
+  const deleteSession = (sessionId: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    setSessionToDelete(sessionId);
+    setDeleteDialogOpen(true);
+  };
 
-    if (!confirm("Delete this conversation?")) return;
+  const confirmSessionDelete = async () => {
+    if (!sessionToDelete) return;
 
     try {
       const API_BASE_URL =
         import.meta.env.VITE_API_URL || "http://localhost:3000";
-      const res = await fetch(`${API_BASE_URL}/chat/session/${sessionId}`, {
+      const res = await fetch(`${API_BASE_URL}/chat/session/${sessionToDelete}`, {
         method: "DELETE",
       });
 
       if (!res.ok) throw new Error("Failed to delete session");
 
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      if (currentSessionId === sessionId) {
+      setSessions((prev) => prev.filter((s) => s.id !== sessionToDelete));
+      if (currentSessionId === sessionToDelete) {
         setCurrentSessionId(null);
         setMessages([]);
       }
@@ -510,6 +517,8 @@ const Chat = () => {
       toast.success("Conversation deleted");
     } catch (err: any) {
       toast.error(`Error: ${err.message}`);
+    } finally {
+      setSessionToDelete(null);
     }
   };
 
@@ -1365,6 +1374,18 @@ const Chat = () => {
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <SettingsMcp open={settingsMcpOpen} onOpenChange={setSettingsMcpOpen} />
       <RAGFileManager open={ragManagerOpen} onOpenChange={setRagManagerOpen} />
+
+      {/* Delete Conversation Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmSessionDelete}
+        title="Delete Conversation?"
+        description="Are you sure you want to delete this conversation? This action cannot be undone and all messages will be permanently removed."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 };
