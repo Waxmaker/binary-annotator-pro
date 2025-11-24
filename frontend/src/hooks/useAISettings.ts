@@ -11,6 +11,7 @@ export interface AISettings {
   openaiModel: string;
   claudeKey: string;
   claudeModel: string;
+  thinking: boolean;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -23,6 +24,7 @@ const DEFAULT_SETTINGS: AISettings = {
   openaiModel: "gpt-4",
   claudeKey: "",
   claudeModel: "claude-3-5-sonnet-20241022",
+  thinking: false,
 };
 
 export function useAISettings() {
@@ -52,6 +54,7 @@ export function useAISettings() {
         openaiModel: data.openai_model || DEFAULT_SETTINGS.openaiModel,
         claudeKey: "", // API keys stay on backend
         claudeModel: data.claude_model || DEFAULT_SETTINGS.claudeModel,
+        thinking: data.thinking || false,
       };
 
       setSettings(loadedSettings);
@@ -71,35 +74,39 @@ export function useAISettings() {
   }, [loadSettings]);
 
   // Save settings to backend
-  const saveSettings = useCallback(async (newSettings: AISettings) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/ai/settings/${userID}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          provider: newSettings.provider,
-          ollama_url: newSettings.ollamaUrl,
-          ollama_model: newSettings.ollamaModel,
-          openai_key: newSettings.openaiKey || undefined,
-          openai_model: newSettings.openaiModel,
-          claude_key: newSettings.claudeKey || undefined,
-          claude_model: newSettings.claudeModel,
-        }),
-      });
+  const saveSettings = useCallback(
+    async (newSettings: AISettings) => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/ai/settings/${userID}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            provider: newSettings.provider,
+            ollama_url: newSettings.ollamaUrl,
+            ollama_model: newSettings.ollamaModel,
+            openai_key: newSettings.openaiKey || undefined,
+            openai_model: newSettings.openaiModel,
+            claude_key: newSettings.claudeKey || undefined,
+            claude_model: newSettings.claudeModel,
+            thinking: newSettings.thinking,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error("Failed to save AI settings");
+        if (!response.ok) {
+          throw new Error("Failed to save AI settings");
+        }
+
+        // Reload settings from backend to get updated state
+        await loadSettings();
+      } catch (err) {
+        console.error("Failed to save AI settings:", err);
+        throw err;
       }
-
-      // Reload settings from backend to get updated state
-      await loadSettings();
-    } catch (err) {
-      console.error("Failed to save AI settings:", err);
-      throw err;
-    }
-  }, [userID, loadSettings]);
+    },
+    [userID, loadSettings],
+  );
 
   // Update specific setting
   const updateSetting = useCallback(
@@ -107,7 +114,7 @@ export function useAISettings() {
       const newSettings = { ...settings, [key]: value };
       setSettings(newSettings);
     },
-    [settings]
+    [settings],
   );
 
   // Reset to defaults

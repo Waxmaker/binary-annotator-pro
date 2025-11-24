@@ -63,8 +63,9 @@ type ChatWSMessage struct {
 
 // ChatWSResponse represents WebSocket response
 type ChatWSResponse struct {
-	Type         string               `json:"type"` // "chunk", "done", "error", "history", "session_created", "tool_approval_request"
+	Type         string               `json:"type"` // "chunk", "thinking", "done", "error", "history", "session_created", "tool_approval_request"
 	Chunk        string               `json:"chunk,omitempty"`
+	Thinking     string               `json:"thinking,omitempty"` // Reasoning trace when think mode is enabled
 	Error        string               `json:"error,omitempty"`
 	SessionID    uint                 `json:"session_id,omitempty"`
 	Messages     []models.ChatMessage `json:"messages,omitempty"`
@@ -591,18 +592,36 @@ Please analyze this hex selection in the context of the user's question.`,
 	// Stream response from Ollama with tool calling support
 	chatService := services.NewChatService(settings.OllamaURL)
 
+	// Prepare think parameter based on settings
+	var thinkParam interface{}
+	if settings.Thinking {
+		thinkParam = true // Default to boolean true for most models
+	}
+
 	// Tool calling loop - may need multiple iterations
 	maxIterations := 5
 	for iteration := 0; iteration < maxIterations; iteration++ {
 		var fullResponse string
+		var fullThinking string
 		var toolCalls []services.ToolCall
 
-		log.Printf("Starting Ollama streaming with %d messages...", len(chatMessages))
+		log.Printf("Starting Ollama streaming with %d messages (thinking: %v)...", len(chatMessages), thinkParam)
 		err := chatService.StreamChatWithTools(services.ChatRequest{
 			Model:    settings.OllamaModel,
 			Messages: chatMessages,
 			Tools:    ollamaTools,
+			Think:    thinkParam,
 		}, func(resp services.StreamResponse) error {
+			// Handle thinking chunks
+			if resp.Thinking != "" {
+				fullThinking += resp.Thinking
+				// Send thinking chunk to client
+				ws.WriteJSON(&ChatWSResponse{
+					Type:     "thinking",
+					Thinking: resp.Thinking,
+				})
+			}
+
 			// Handle content chunks
 			if resp.Content != "" {
 				fullResponse += resp.Content

@@ -5,6 +5,7 @@ import { EcgSettings } from "./EcgSettings";
 
 interface SampleInspectorProps {
   samples: number[];
+  timestamps?: number[];
   stats: SampleStats | null;
   settings: EcgSettings;
   selectedIndex?: number;
@@ -13,13 +14,17 @@ interface SampleInspectorProps {
 
 export function SampleInspector({
   samples,
+  timestamps = [],
   stats,
   settings,
   selectedIndex,
   onSelectIndex,
 }: SampleInspectorProps) {
-  // Estimate duration based on horizontal scale (samples per second)
-  const estimatedDuration = stats
+  // Calculate actual duration from timestamps if available
+  const hasTimestamps = timestamps.length > 0;
+  const estimatedDuration = hasTimestamps && timestamps.length > 0
+    ? (timestamps[timestamps.length - 1] - timestamps[0]).toFixed(2)
+    : stats
     ? (stats.count / settings.horizontalScale).toFixed(2)
     : "0";
 
@@ -105,10 +110,10 @@ export function SampleInspector({
                   </thead>
                   <tbody>
                     {samples.map((value, index) => {
-                      const timeMs = (
-                        (index / settings.horizontalScale) *
-                        1000
-                      ).toFixed(1);
+                      // Use real timestamp if available, otherwise calculate from index
+                      const timeDisplay = hasTimestamps && timestamps[index] !== undefined
+                        ? (timestamps[index] * 1000).toFixed(1)
+                        : ((index / settings.horizontalScale) * 1000).toFixed(1);
                       const isSelected = selectedIndex === index;
                       return (
                         <tr
@@ -123,7 +128,7 @@ export function SampleInspector({
                             {value}
                           </td>
                           <td className="py-2 px-2 font-mono text-muted-foreground">
-                            {timeMs}
+                            {timeDisplay}
                           </td>
                         </tr>
                       );

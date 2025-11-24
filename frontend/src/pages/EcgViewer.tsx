@@ -17,7 +17,7 @@ const STORAGE_KEY = "ecg-viewer-state";
 
 const EcgViewer = () => {
   const navigate = useNavigate();
-  const { samples, error, parseSamples, getStats } = useSamples();
+  const { samples, timestamps, error, parseSamples, getStats } = useSamples();
   const [selectedIndex, setSelectedIndex] = useState<number | undefined>(
     undefined,
   );
@@ -145,6 +145,7 @@ const EcgViewer = () => {
           <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
             <SampleInspector
               samples={samples}
+              timestamps={timestamps}
               stats={stats}
               settings={settings}
               selectedIndex={selectedIndex}

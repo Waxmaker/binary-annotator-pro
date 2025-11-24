@@ -50,7 +50,6 @@ import { RAGFileManager } from "@/components/RAGFileManager";
 import { useAISettings } from "@/hooks/useAISettings";
 import { HexViewer } from "@/components/HexViewer";
 import { useHexSelection } from "@/hooks/useHexSelection";
-import { HighlightRange } from "@/utils/colorUtils";
 
 interface ChatMessage {
   id?: number;
@@ -98,7 +97,7 @@ const Chat = () => {
   const [currentBuffer, setCurrentBuffer] = useState<ArrayBuffer | null>(null);
   const [isLoadingBuffer, setIsLoadingBuffer] = useState(false);
   const [hexViewerVisible, setHexViewerVisible] = useState(false);
-  const [rightPanelWidth, setRightPanelWidth] = useState(400);
+  const [rightPanelWidth, setRightPanelWidth] = useState(660);
   const [isResizingRightPanel, setIsResizingRightPanel] = useState(false);
   const [dockerStats, setDockerStats] = useState<{
     serverCount: number;

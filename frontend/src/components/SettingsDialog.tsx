@@ -18,9 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { useAISettings, AIProvider, AISettings } from "@/hooks/useAISettings";
 import { toast } from "sonner";
-import { Sparkles, Check, AlertCircle } from "lucide-react";
+import { Sparkles, Check, AlertCircle, Zap } from "lucide-react";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -28,7 +29,8 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const { settings, isConfigured, saveSettings, resetSettings } = useAISettings();
+  const { settings, isConfigured, saveSettings, resetSettings } =
+    useAISettings();
   const [localSettings, setLocalSettings] = useState<AISettings>(settings);
 
   useEffect(() => {
@@ -44,7 +46,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   };
 
   const handleReset = () => {
-    if (confirm("Are you sure you want to reset all AI settings to defaults?")) {
+    if (
+      confirm("Are you sure you want to reset all AI settings to defaults?")
+    ) {
       resetSettings();
       setLocalSettings(settings);
       toast.success("Settings reset to defaults");
@@ -123,13 +127,22 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           <Tabs value={localSettings.provider} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="ollama" onClick={() => handleProviderChange("ollama")}>
+              <TabsTrigger
+                value="ollama"
+                onClick={() => handleProviderChange("ollama")}
+              >
                 Ollama
               </TabsTrigger>
-              <TabsTrigger value="openai" onClick={() => handleProviderChange("openai")}>
+              <TabsTrigger
+                value="openai"
+                onClick={() => handleProviderChange("openai")}
+              >
                 OpenAI
               </TabsTrigger>
-              <TabsTrigger value="claude" onClick={() => handleProviderChange("claude")}>
+              <TabsTrigger
+                value="claude"
+                onClick={() => handleProviderChange("claude")}
+              >
                 Claude
               </TabsTrigger>
             </TabsList>
@@ -143,7 +156,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   placeholder="http://localhost:11434"
                   value={localSettings.ollamaUrl}
                   onChange={(e) =>
-                    setLocalSettings({ ...localSettings, ollamaUrl: e.target.value })
+                    setLocalSettings({
+                      ...localSettings,
+                      ollamaUrl: e.target.value,
+                    })
                   }
                 />
                 <p className="text-xs text-muted-foreground">
@@ -166,18 +182,54 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   placeholder="llama2"
                   value={localSettings.ollamaModel}
                   onChange={(e) =>
-                    setLocalSettings({ ...localSettings, ollamaModel: e.target.value })
+                    setLocalSettings({
+                      ...localSettings,
+                      ollamaModel: e.target.value,
+                    })
                   }
                 />
                 <p className="text-xs text-muted-foreground">
                   Popular models: llama2, codellama, mistral, mixtral
                 </p>
               </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`p-2 rounded-md ${localSettings.thinking ? "bg-green-100 dark:bg-green-950" : "bg-gray-100 dark:bg-gray-800"}`}
+                  >
+                    <Zap
+                      className={`h-4 w-4 ${localSettings.thinking ? "text-green-600 dark:text-green-400" : "text-gray-400"}`}
+                    />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="thinking-popover-toggle"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Enable Thinking Mode
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {localSettings.thinking ? "Enabled" : "Disabled"}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="thinking-popover-toggle"
+                  checked={localSettings.thinking}
+                  onCheckedChange={(value) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      thinking: value,
+                    })
+                  }
+                />
+              </div>
 
               <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                 <AlertCircle className="h-4 w-4 text-blue-500 mt-0.5" />
                 <div className="text-xs text-muted-foreground">
-                  Ollama runs locally and is completely free. Great for privacy and no API costs!
+                  Ollama runs locally and is completely free. Great for privacy
+                  and no API costs!
                 </div>
               </div>
             </TabsContent>
@@ -192,7 +244,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   placeholder="sk-..."
                   value={localSettings.openaiKey}
                   onChange={(e) =>
-                    setLocalSettings({ ...localSettings, openaiKey: e.target.value })
+                    setLocalSettings({
+                      ...localSettings,
+                      openaiKey: e.target.value,
+                    })
                   }
                 />
                 <p className="text-xs text-muted-foreground">
@@ -221,8 +276,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="gpt-4">GPT-4 (Most capable)</SelectItem>
-                    <SelectItem value="gpt-4-turbo">GPT-4 Turbo (Faster)</SelectItem>
-                    <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo (Cheaper)</SelectItem>
+                    <SelectItem value="gpt-4-turbo">
+                      GPT-4 Turbo (Faster)
+                    </SelectItem>
+                    <SelectItem value="gpt-3.5-turbo">
+                      GPT-3.5 Turbo (Cheaper)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -230,8 +289,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                 <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5" />
                 <div className="text-xs text-muted-foreground">
-                  OpenAI API usage is billed. Your key is stored locally and never sent to our
-                  servers.
+                  OpenAI API usage is billed. Your key is stored locally and
+                  never sent to our servers.
                 </div>
               </div>
             </TabsContent>
@@ -246,7 +305,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   placeholder="sk-ant-..."
                   value={localSettings.claudeKey}
                   onChange={(e) =>
-                    setLocalSettings({ ...localSettings, claudeKey: e.target.value })
+                    setLocalSettings({
+                      ...localSettings,
+                      claudeKey: e.target.value,
+                    })
                   }
                 />
                 <p className="text-xs text-muted-foreground">
@@ -293,8 +355,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                 <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5" />
                 <div className="text-xs text-muted-foreground">
-                  Claude API usage is billed. Your key is stored locally and never sent to our
-                  servers.
+                  Claude API usage is billed. Your key is stored locally and
+                  never sent to our servers.
                 </div>
               </div>
             </TabsContent>

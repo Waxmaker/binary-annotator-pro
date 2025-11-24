@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
@@ -20,6 +21,22 @@ func (h *Handler) StartCompressionAnalysis(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "invalid file ID",
 		})
+	}
+
+	// Parse optional offset and length parameters for selective analysis
+	var startOffset *int64
+	var length *int64
+
+	if startOffsetStr := c.QueryParam("start_offset"); startOffsetStr != "" {
+		if offset, err := strconv.ParseInt(startOffsetStr, 10, 64); err == nil {
+			startOffset = &offset
+		}
+	}
+
+	if lengthStr := c.QueryParam("length"); lengthStr != "" {
+		if l, err := strconv.ParseInt(lengthStr, 10, 64); err == nil {
+			length = &l
+		}
 	}
 
 	// Check if file exists
@@ -57,7 +74,7 @@ func (h *Handler) StartCompressionAnalysis(c echo.Context) error {
 	}
 
 	// Trigger Python compression detector asynchronously
-	go h.runCompressionDetector(analysis.ID, file)
+	go h.runCompressionDetector(analysis.ID, file, startOffset, length)
 
 	fmt.Printf("Created compression analysis %d for file %s\n", analysis.ID, file.Name)
 
@@ -157,27 +174,62 @@ func (h *Handler) DownloadDecompressedFile(c echo.Context) error {
 		})
 	}
 
-	// Check if decompressed file exists
-	if result.DecompressedFileID == nil {
+	// Get analysis with file info
+	var analysis models.CompressionAnalysis
+	if err := h.db.GormDB.First(&analysis, result.AnalysisID).Error; err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{
-			"error": "no decompressed file available",
+			"error": "analysis not found",
 		})
 	}
 
-	// Get decompressed file
-	var decompressedFile models.DecompressedFile
-	if err := h.db.GormDB.First(&decompressedFile, *result.DecompressedFileID).Error; err != nil {
+	// Get file info
+	var file models.File
+	if err := h.db.GormDB.First(&file, analysis.FileID).Error; err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{
-			"error": "decompressed file not found",
+			"error": "file not found",
+		})
+	}
+
+	var data []byte
+	var fileName string
+
+	// First try to get from database if DecompressedFileID exists
+	if result.DecompressedFileID != nil {
+		var decompressedFile models.DecompressedFile
+		if err := h.db.GormDB.First(&decompressedFile, *result.DecompressedFileID).Error; err == nil {
+			data = decompressedFile.Data
+			fileName = decompressedFile.FileName
+		}
+	}
+
+	// If not found in database, try to get from /tmp/decompressed/
+	if data == nil && file.Name != "" {
+		// Construct filename from original file and compression method
+		baseFileName := file.Name
+		if ext := filepath.Ext(baseFileName); ext != "" {
+			baseFileName = baseFileName[:len(baseFileName)-len(ext)]
+		}
+		tempFileName := fmt.Sprintf("/tmp/decompressed/%s.%s.decompressed", baseFileName, result.Method)
+
+		if fileData, err := os.ReadFile(tempFileName); err == nil {
+			data = fileData
+			fileName = fmt.Sprintf("%s.%s.decompressed", baseFileName, result.Method)
+		}
+	}
+
+	// If still no data found
+	if data == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "decompressed file not found in database or /tmp/decompressed/",
 		})
 	}
 
 	// Set headers and return blob
-	c.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", decompressedFile.FileName))
+	c.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 	c.Response().Header().Set("Content-Type", "application/octet-stream")
-	c.Response().Header().Set("Content-Length", fmt.Sprintf("%d", decompressedFile.Size))
+	c.Response().Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
 
-	return c.Blob(http.StatusOK, "application/octet-stream", decompressedFile.Data)
+	return c.Blob(http.StatusOK, "application/octet-stream", data)
 }
 
 // DeleteCompressionAnalysis deletes an analysis and its results
@@ -188,6 +240,36 @@ func (h *Handler) DeleteCompressionAnalysis(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "invalid analysis ID",
 		})
+	}
+
+	// Get analysis info before deletion to get file ID
+	var analysis models.CompressionAnalysis
+	if err := h.db.GormDB.First(&analysis, analysisID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "analysis not found",
+		})
+	}
+
+	// Get the associated file to extract filename
+	var file models.File
+	if err := h.db.GormDB.First(&file, analysis.FileID).Error; err == nil {
+		// Delete decompressed files from /tmp/decompressed/
+		if file.Name != "" {
+			// Extract filename without extension for pattern matching
+			fileName := file.Name
+			if ext := filepath.Ext(fileName); ext != "" {
+				fileName = fileName[:len(fileName)-len(ext)]
+			}
+
+			// Remove all decompressed files matching the pattern
+			pattern := fmt.Sprintf("/tmp/decompressed/%s.*.decompressed", fileName)
+			matches, _ := filepath.Glob(pattern)
+			for _, match := range matches {
+				if err := os.Remove(match); err != nil {
+					fmt.Printf("Warning: failed to remove decompressed file %s: %v\n", match, err)
+				}
+			}
+		}
 	}
 
 	// Delete all results first
@@ -211,33 +293,33 @@ func (h *Handler) DeleteCompressionAnalysis(c echo.Context) error {
 
 // Python analysis result structures
 type PythonDecompressionResult struct {
-	Method               string  `json:"method"`
-	Success              bool    `json:"success"`
-	DecompressedSize     int64   `json:"decompressed_size"`
-	OriginalSize         int64   `json:"original_size"`
-	CompressionRatio     float64 `json:"compression_ratio"`
-	Confidence           float64 `json:"confidence"`
-	EntropyOriginal      float64 `json:"entropy_original"`
-	EntropyDecompressed  float64 `json:"entropy_decompressed"`
-	ChecksumValid        bool    `json:"checksum_valid"`
-	ValidationMsg        string  `json:"validation_msg"`
-	Error                *string `json:"error"`
+	Method              string  `json:"method"`
+	Success             bool    `json:"success"`
+	DecompressedSize    int64   `json:"decompressed_size"`
+	OriginalSize        int64   `json:"original_size"`
+	CompressionRatio    float64 `json:"compression_ratio"`
+	Confidence          float64 `json:"confidence"`
+	EntropyOriginal     float64 `json:"entropy_original"`
+	EntropyDecompressed float64 `json:"entropy_decompressed"`
+	ChecksumValid       bool    `json:"checksum_valid"`
+	ValidationMsg       string  `json:"validation_msg"`
+	Error               *string `json:"error"`
 }
 
 type PythonAnalysisReport struct {
-	FilePath      string                       `json:"file_path"`
-	FileSize      int64                        `json:"file_size"`
-	TotalTests    int                          `json:"total_tests"`
-	SuccessCount  int                          `json:"success_count"`
-	FailedCount   int                          `json:"failed_count"`
-	BestMethod    *string                      `json:"best_method"`
-	BestRatio     float64                      `json:"best_ratio"`
+	FilePath       string                      `json:"file_path"`
+	FileSize       int64                       `json:"file_size"`
+	TotalTests     int                         `json:"total_tests"`
+	SuccessCount   int                         `json:"success_count"`
+	FailedCount    int                         `json:"failed_count"`
+	BestMethod     *string                     `json:"best_method"`
+	BestRatio      float64                     `json:"best_ratio"`
 	BestConfidence float64                     `json:"best_confidence"`
-	Results       []PythonDecompressionResult  `json:"results"`
+	Results        []PythonDecompressionResult `json:"results"`
 }
 
 // runCompressionDetector executes Python compression detector asynchronously
-func (h *Handler) runCompressionDetector(analysisID uint, file models.File) {
+func (h *Handler) runCompressionDetector(analysisID uint, file models.File, startOffset *int64, length *int64) {
 	// Update status to running
 	h.db.GormDB.Model(&models.CompressionAnalysis{}).Where("id = ?", analysisID).
 		Updates(map[string]interface{}{
@@ -254,17 +336,26 @@ func (h *Handler) runCompressionDetector(analysisID uint, file models.File) {
 	defer os.Remove(tmpFile)
 
 	// Create temporary directory for decompressed files
-	tmpDir := fmt.Sprintf("/tmp/decompressed_%d_%d", file.ID, analysisID)
+	tmpDir := "/tmp/decompressed"
 	err = os.MkdirAll(tmpDir, 0755)
 	if err != nil {
 		h.updateAnalysisError(analysisID, fmt.Sprintf("Failed to create temp dir: %v", err))
 		return
 	}
-	defer os.RemoveAll(tmpDir)
 
 	// Execute Python script with output directory
-	scriptPath := "../test/compression_detector.py"
-	cmd := exec.Command("python3", scriptPath, tmpFile, "--json", "--output-dir", tmpDir)
+	scriptPath := "/app/python_tools/compression_detector.py"
+	cmdArgs := []string{scriptPath, tmpFile, "--json", "--output-dir", tmpDir, "--original-filename", file.Name}
+
+	// Add offset parameters if provided
+	if startOffset != nil {
+		cmdArgs = append(cmdArgs, "--start-offset", fmt.Sprintf("%d", *startOffset))
+	}
+	if length != nil {
+		cmdArgs = append(cmdArgs, "--length", fmt.Sprintf("%d", *length))
+	}
+
+	cmd := exec.Command("python3", cmdArgs...)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -287,10 +378,10 @@ func (h *Handler) runCompressionDetector(analysisID uint, file models.File) {
 
 	// Update analysis status to completed
 	updates := map[string]interface{}{
-		"status":       "completed",
-		"total_tests":  report.TotalTests,
+		"status":        "completed",
+		"total_tests":   report.TotalTests,
 		"success_count": report.SuccessCount,
-		"failed_count": report.FailedCount,
+		"failed_count":  report.FailedCount,
 	}
 
 	if report.BestMethod != nil {
@@ -386,7 +477,7 @@ func (h *Handler) AddDecompressedToFiles(c echo.Context) error {
 		})
 	}
 
-	// Get the result
+	// Get result
 	var result models.CompressionResult
 	if err := h.db.GormDB.First(&result, resultID).Error; err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{
@@ -394,26 +485,61 @@ func (h *Handler) AddDecompressedToFiles(c echo.Context) error {
 		})
 	}
 
-	// Check if decompressed file exists
-	if result.DecompressedFileID == nil {
+	// Get analysis with file info
+	var analysis models.CompressionAnalysis
+	if err := h.db.GormDB.First(&analysis, result.AnalysisID).Error; err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{
-			"error": "no decompressed file available",
+			"error": "analysis not found",
 		})
 	}
 
-	// Get decompressed file
-	var decompFile models.DecompressedFile
-	if err := h.db.GormDB.First(&decompFile, *result.DecompressedFileID).Error; err != nil {
+	// Get file info
+	var file models.File
+	if err := h.db.GormDB.First(&file, analysis.FileID).Error; err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{
-			"error": "decompressed file not found",
+			"error": "file not found",
+		})
+	}
+
+	var data []byte
+	var fileName string
+
+	// First try to get from database if DecompressedFileID exists
+	if result.DecompressedFileID != nil {
+		var decompFile models.DecompressedFile
+		if err := h.db.GormDB.First(&decompFile, *result.DecompressedFileID).Error; err == nil {
+			data = decompFile.Data
+			fileName = decompFile.FileName
+		}
+	}
+
+	// If not found in database, try to get from /tmp/decompressed/
+	if data == nil && file.Name != "" {
+		// Construct filename from original file and compression method
+		baseFileName := file.Name
+		if ext := filepath.Ext(baseFileName); ext != "" {
+			baseFileName = baseFileName[:len(baseFileName)-len(ext)]
+		}
+		tempFileName := fmt.Sprintf("/tmp/decompressed/%s.%s.decompressed", baseFileName, result.Method)
+
+		if fileData, err := os.ReadFile(tempFileName); err == nil {
+			data = fileData
+			fileName = fmt.Sprintf("%s.%s.decompressed", baseFileName, result.Method)
+		}
+	}
+
+	// If still no data found
+	if data == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "decompressed file not found in database or /tmp/decompressed/",
 		})
 	}
 
 	// Create new binary file
 	newFile := models.File{
-		Name: decompFile.FileName,
-		Size: decompFile.Size,
-		Data: decompFile.Data,
+		Name: fileName,
+		Size: int64(len(data)),
+		Data: data,
 	}
 
 	if err := h.db.GormDB.Create(&newFile).Error; err != nil {
@@ -461,14 +587,19 @@ func (h *Handler) saveCompressionResults(analysisID uint, fileID uint, report *P
 
 		// Try to load and save decompressed file if it exists and was successful
 		if pyResult.Success && pyResult.ChecksumValid {
-			decompressedPath := fmt.Sprintf("%s.%s.decompressed", tmpFile, pyResult.Method)
+			// Extract original filename without extension for decompressed filename
+			originalFileName := filepath.Base(report.FilePath)
+			if ext := filepath.Ext(originalFileName); ext != "" {
+				originalFileName = originalFileName[:len(originalFileName)-len(ext)]
+			}
+			decompressedPath := fmt.Sprintf("%s/%s.%s.decompressed", tmpDir, originalFileName, pyResult.Method)
 			if data, err := os.ReadFile(decompressedPath); err == nil {
 				// Save decompressed file to database
 				decompressedFile := models.DecompressedFile{
 					OriginalFileID: fileID,
 					ResultID:       result.ID,
 					Method:         pyResult.Method,
-					FileName:       fmt.Sprintf("%s_%s_decompressed", report.FilePath, pyResult.Method),
+					FileName:       fmt.Sprintf("%s.%s.decompressed", originalFileName, pyResult.Method),
 					Size:           int64(len(data)),
 					Data:           data,
 				}

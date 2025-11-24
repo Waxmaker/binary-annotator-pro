@@ -112,7 +112,8 @@ export default function Documentation() {
                   3
                 </span>
                 <span>
-                  Create or generate a YAML configuration to define data structures
+                  Create or generate a YAML configuration to define data
+                  structures
                 </span>
               </li>
               <li className="flex gap-3">
@@ -147,8 +148,8 @@ export default function Documentation() {
               <h3 className="text-2xl font-semibold mb-4">Uploading Files</h3>
               <div className="border-l-4 border-primary pl-6 space-y-3">
                 <p className="text-muted-foreground">
-                  Binary files are stored directly in the SQLite database as BLOB
-                  data, ensuring everything stays in one place.
+                  Binary files are stored directly in the SQLite database as
+                  BLOB data, ensuring everything stays in one place.
                 </p>
                 <div className="space-y-2">
                   <p className="font-semibold">To upload a file:</p>
@@ -156,22 +157,28 @@ export default function Documentation() {
                     <li>Navigate to the "Files" tab in the left panel</li>
                     <li>Click "Upload Binary" button</li>
                     <li>Select your binary file (any format supported)</li>
-                    <li>The file will be stored and appear in your file list</li>
+                    <li>
+                      The file will be stored and appear in your file list
+                    </li>
                   </ol>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-2xl font-semibold mb-4">Quick File Selection</h3>
+              <h3 className="text-2xl font-semibold mb-4">
+                Quick File Selection
+              </h3>
               <p className="text-muted-foreground mb-4">
-                You can switch between files in multiple ways for faster workflow:
+                You can switch between files in multiple ways for faster
+                workflow:
               </p>
               <div className="grid gap-4">
                 <div className="border rounded-lg p-4">
                   <h4 className="font-semibold mb-2">Method 1: File List</h4>
                   <p className="text-sm text-muted-foreground">
-                    Click any file in the "Files" tab to load it in the hex viewer
+                    Click any file in the "Files" tab to load it in the hex
+                    viewer
                   </p>
                 </div>
                 <div className="border rounded-lg p-4">
@@ -184,10 +191,12 @@ export default function Documentation() {
                   </p>
                 </div>
                 <div className="border rounded-lg p-4">
-                  <h4 className="font-semibold mb-2">Method 3: AI Chat Context</h4>
+                  <h4 className="font-semibold mb-2">
+                    Method 3: AI Chat Context
+                  </h4>
                   <p className="text-sm text-muted-foreground">
-                    Select a file in the chat interface to provide context for your
-                    AI questions
+                    Select a file in the chat interface to provide context for
+                    your AI questions
                   </p>
                 </div>
               </div>
@@ -221,8 +230,8 @@ export default function Documentation() {
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1">•</span>
                   <span>
-                    <strong>Byte Frequency:</strong> Histogram showing distribution
-                    of byte values
+                    <strong>Byte Frequency:</strong> Histogram showing
+                    distribution of byte values
                   </span>
                 </li>
               </ul>
@@ -247,7 +256,9 @@ export default function Documentation() {
 
           <div className="space-y-8">
             <div>
-              <h3 className="text-2xl font-semibold mb-4">Configuration Structure</h3>
+              <h3 className="text-2xl font-semibold mb-4">
+                Configuration Structure
+              </h3>
               <p className="text-muted-foreground mb-4">
                 A YAML configuration file contains two main sections:
               </p>
@@ -269,7 +280,9 @@ tags:
             </div>
 
             <div>
-              <h3 className="text-2xl font-semibold mb-4">Supported Search Types</h3>
+              <h3 className="text-2xl font-semibold mb-4">
+                Supported Search Types
+              </h3>
               <p className="text-muted-foreground mb-4">
                 All search operations are performed server-side for optimal
                 performance. Binary Annotator Pro supports 16+ data types:
@@ -300,49 +313,65 @@ tags:
                   </p>
                 </div>
                 <div className="border rounded p-3">
-                  <code className="text-sm font-semibold">int16le / int16be</code>
+                  <code className="text-sm font-semibold">
+                    int16le / int16be
+                  </code>
                   <p className="text-xs text-muted-foreground mt-1">
                     16-bit signed integers
                   </p>
                 </div>
                 <div className="border rounded p-3">
-                  <code className="text-sm font-semibold">uint16le / uint16be</code>
+                  <code className="text-sm font-semibold">
+                    uint16le / uint16be
+                  </code>
                   <p className="text-xs text-muted-foreground mt-1">
                     16-bit unsigned integers
                   </p>
                 </div>
                 <div className="border rounded p-3">
-                  <code className="text-sm font-semibold">int32le / int32be</code>
+                  <code className="text-sm font-semibold">
+                    int32le / int32be
+                  </code>
                   <p className="text-xs text-muted-foreground mt-1">
                     32-bit signed integers
                   </p>
                 </div>
                 <div className="border rounded p-3">
-                  <code className="text-sm font-semibold">uint32le / uint32be</code>
+                  <code className="text-sm font-semibold">
+                    uint32le / uint32be
+                  </code>
                   <p className="text-xs text-muted-foreground mt-1">
                     32-bit unsigned integers
                   </p>
                 </div>
                 <div className="border rounded p-3">
-                  <code className="text-sm font-semibold">float32le / float32be</code>
+                  <code className="text-sm font-semibold">
+                    float32le / float32be
+                  </code>
                   <p className="text-xs text-muted-foreground mt-1">
                     32-bit floats
                   </p>
                 </div>
                 <div className="border rounded p-3">
-                  <code className="text-sm font-semibold">float64le / float64be</code>
+                  <code className="text-sm font-semibold">
+                    float64le / float64be
+                  </code>
                   <p className="text-xs text-muted-foreground mt-1">
                     64-bit doubles
                   </p>
                 </div>
                 <div className="border rounded p-3">
-                  <code className="text-sm font-semibold">timestamp-unix32</code>
+                  <code className="text-sm font-semibold">
+                    timestamp-unix32
+                  </code>
                   <p className="text-xs text-muted-foreground mt-1">
                     Unix timestamp (32-bit)
                   </p>
                 </div>
                 <div className="border rounded p-3">
-                  <code className="text-sm font-semibold">timestamp-unix64</code>
+                  <code className="text-sm font-semibold">
+                    timestamp-unix64
+                  </code>
                   <p className="text-xs text-muted-foreground mt-1">
                     Unix timestamp (64-bit)
                   </p>
@@ -351,7 +380,9 @@ tags:
             </div>
 
             <div>
-              <h3 className="text-2xl font-semibold mb-4">YAML Editor Features</h3>
+              <h3 className="text-2xl font-semibold mb-4">
+                YAML Editor Features
+              </h3>
               <ul className="space-y-3 ml-4">
                 <li className="flex items-start gap-3">
                   <span className="text-primary mt-1 text-xl">→</span>
@@ -363,15 +394,15 @@ tags:
                 <li className="flex items-start gap-3">
                   <span className="text-primary mt-1 text-xl">→</span>
                   <div>
-                    <strong>Apply Changes:</strong> Click "Apply Changes" to update
-                    the hex viewer with new highlights
+                    <strong>Apply Changes:</strong> Click "Apply Changes" to
+                    update the hex viewer with new highlights
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-primary mt-1 text-xl">→</span>
                   <div>
-                    <strong>Auto-Validation:</strong> YAML is validated only when
-                    saving to prevent lag during editing
+                    <strong>Auto-Validation:</strong> YAML is validated only
+                    when saving to prevent lag during editing
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
@@ -391,9 +422,9 @@ tags:
               </h4>
               <p className="text-sm text-muted-foreground">
                 When multiple tags overlap, smaller (more specific) tags are
-                displayed on top of larger ones. For example, a 2-byte red tag at
-                0x001 will be visible even if it's inside a 256-byte yellow tag at
-                0x000.
+                displayed on top of larger ones. For example, a 2-byte red tag
+                at 0x001 will be visible even if it's inside a 256-byte yellow
+                tag at 0x000.
               </p>
             </div>
           </div>
@@ -418,38 +449,41 @@ tags:
             <div>
               <h3 className="text-2xl font-semibold mb-4">Pattern Search</h3>
               <p className="text-muted-foreground mb-4">
-                Automatically detect repeating byte sequences in your binary file:
+                Automatically detect repeating byte sequences in your binary
+                file:
               </p>
               <ul className="space-y-2 ml-4">
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1">•</span>
                   <span>
-                    <strong>Min/Max Length:</strong> Configure pattern size (2-16
-                    bytes)
+                    <strong>Min/Max Length:</strong> Configure pattern size
+                    (2-16 bytes)
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1">•</span>
                   <span>
-                    <strong>Minimum Occurrences:</strong> Filter by how many times a
-                    pattern repeats
+                    <strong>Minimum Occurrences:</strong> Filter by how many
+                    times a pattern repeats
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1">•</span>
                   <span>
-                    <strong>Results:</strong> Click any pattern to jump to its first
-                    occurrence in the hex viewer
+                    <strong>Results:</strong> Click any pattern to jump to its
+                    first occurrence in the hex viewer
                   </span>
                 </li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-2xl font-semibold mb-4">Pattern Clustering</h3>
+              <h3 className="text-2xl font-semibold mb-4">
+                Pattern Clustering
+              </h3>
               <p className="text-muted-foreground mb-4">
-                Detect periodic structures that may indicate record boundaries or
-                data frames:
+                Detect periodic structures that may indicate record boundaries
+                or data frames:
               </p>
               <div className="border rounded-lg p-4 bg-muted/50">
                 <p className="text-sm mb-2">
@@ -471,14 +505,16 @@ tags:
               </h3>
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6">
                 <p className="text-sm">
-                  All search operations are executed on the Go backend for maximum
-                  performance. This includes:
+                  All search operations are executed on the Go backend for
+                  maximum performance. This includes:
                 </p>
                 <ul className="space-y-1 text-sm mt-3 ml-4">
                   <li>• YAML-defined searches (16+ data types)</li>
                   <li>• Pattern matching and clustering</li>
                   <li>• Data type conversions and endianness handling</li>
-                  <li>• Large file processing (efficiently handles 50MB+ files)</li>
+                  <li>
+                    • Large file processing (efficiently handles 50MB+ files)
+                  </li>
                 </ul>
               </div>
             </div>
@@ -505,19 +541,24 @@ tags:
               <h3 className="text-xl font-semibold mb-3">Entropy Graph</h3>
               <p className="text-muted-foreground mb-4">
                 Shannon entropy analysis plotted across the file length. Entropy
-                values range from 0 (highly structured) to 8 (random/compressed).
+                values range from 0 (highly structured) to 8
+                (random/compressed).
               </p>
               <div className="bg-muted/50 rounded p-4">
-                <p className="text-sm font-semibold mb-2">Entropy Interpretation:</p>
+                <p className="text-sm font-semibold mb-2">
+                  Entropy Interpretation:
+                </p>
                 <ul className="text-sm space-y-1">
                   <li>
-                    <strong>0-4:</strong> Structured data (text, repetitive patterns)
+                    <strong>0-4:</strong> Structured data (text, repetitive
+                    patterns)
                   </li>
                   <li>
                     <strong>4-7:</strong> Mixed data (typical binary formats)
                   </li>
                   <li>
-                    <strong>7-8:</strong> High entropy (compressed or encrypted data)
+                    <strong>7-8:</strong> High entropy (compressed or encrypted
+                    data)
                   </li>
                 </ul>
               </div>
@@ -590,9 +631,12 @@ tags:
                   </p>
                 </div>
                 <div className="border-l-4 border-primary pl-4">
-                  <h4 className="font-semibold mb-1">Dynamic Field Detection</h4>
+                  <h4 className="font-semibold mb-1">
+                    Dynamic Field Detection
+                  </h4>
                   <p className="text-sm text-muted-foreground">
-                    Identify which fields change between recordings vs static fields
+                    Identify which fields change between recordings vs static
+                    fields
                   </p>
                 </div>
                 <div className="border-l-4 border-primary pl-4">
@@ -605,14 +649,17 @@ tags:
                 <div className="border-l-4 border-primary pl-4">
                   <h4 className="font-semibold mb-1">Data Validation</h4>
                   <p className="text-sm text-muted-foreground">
-                    Verify that certain fields remain constant across different files
+                    Verify that certain fields remain constant across different
+                    files
                   </p>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-2xl font-semibold mb-4">Comparison Features</h3>
+              <h3 className="text-2xl font-semibold mb-4">
+                Comparison Features
+              </h3>
               <ul className="space-y-2 ml-4">
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1">•</span>
@@ -692,7 +739,9 @@ tags:
                     3
                   </span>
                   <div>
-                    <p className="font-semibold">Configure in Binary Annotator</p>
+                    <p className="font-semibold">
+                      Configure in Binary Annotator
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       Click "AI Settings" and enter your Ollama URL (default:
                       http://localhost:11434)
@@ -719,7 +768,9 @@ tags:
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary mt-1">Q:</span>
-                      <span>"Where might the timestamp be stored in this file?"</span>
+                      <span>
+                        "Where might the timestamp be stored in this file?"
+                      </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary mt-1">Q:</span>
@@ -743,8 +794,8 @@ tags:
                 Auto-Generate YAML Configuration
               </h3>
               <p className="text-muted-foreground mb-4">
-                In the Config tab, click the "AI" button to automatically generate
-                a YAML configuration:
+                In the Config tab, click the "AI" button to automatically
+                generate a YAML configuration:
               </p>
               <ul className="space-y-2 ml-4">
                 <li className="flex items-start gap-2">
@@ -770,8 +821,8 @@ tags:
               <h4 className="font-semibold mb-2">File Context</h4>
               <p className="text-sm text-muted-foreground">
                 Use the file selector in the chat header to specify which binary
-                file you're asking about. The AI will use this context to provide
-                more relevant answers.
+                file you're asking about. The AI will use this context to
+                provide more relevant answers.
               </p>
             </div>
           </div>
@@ -793,13 +844,17 @@ tags:
 
           <div className="space-y-8">
             <div>
-              <h3 className="text-2xl font-semibold mb-4">Creating Bookmarks</h3>
+              <h3 className="text-2xl font-semibold mb-4">
+                Creating Bookmarks
+              </h3>
               <ol className="space-y-3">
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-semibold">
                     1
                   </span>
-                  <span>Select bytes in the hex viewer by clicking or dragging</span>
+                  <span>
+                    Select bytes in the hex viewer by clicking or dragging
+                  </span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-semibold">
@@ -826,25 +881,29 @@ tags:
               <h3 className="text-2xl font-semibold mb-4">Using Bookmarks</h3>
               <div className="border rounded-lg p-6 bg-muted/50">
                 <p className="mb-4">
-                  Bookmarks provide quick navigation to important file locations:
+                  Bookmarks provide quick navigation to important file
+                  locations:
                 </p>
                 <ul className="space-y-2 ml-4">
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
                     <span>
-                      Click any bookmark to jump to that offset in the hex viewer
+                      Click any bookmark to jump to that offset in the hex
+                      viewer
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
                     <span>
-                      The byte range is automatically selected for easy reference
+                      The byte range is automatically selected for easy
+                      reference
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
                     <span>
-                      Edit or delete bookmarks to keep your annotations organized
+                      Edit or delete bookmarks to keep your annotations
+                      organized
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
@@ -861,22 +920,22 @@ tags:
                 <div className="border-l-4 border-primary pl-4">
                   <h4 className="font-semibold mb-1">Descriptive Names</h4>
                   <p className="text-sm text-muted-foreground">
-                    Use clear names like "Header Magic", "Sample Rate Offset", or
-                    "Lead II Data Start"
+                    Use clear names like "Header Magic", "Sample Rate Offset",
+                    or "Lead II Data Start"
                   </p>
                 </div>
                 <div className="border-l-4 border-primary pl-4">
                   <h4 className="font-semibold mb-1">Document Findings</h4>
                   <p className="text-sm text-muted-foreground">
-                    Add detailed descriptions explaining what the data represents
-                    and how you determined it
+                    Add detailed descriptions explaining what the data
+                    represents and how you determined it
                   </p>
                 </div>
                 <div className="border-l-4 border-primary pl-4">
                   <h4 className="font-semibold mb-1">Organize by Type</h4>
                   <p className="text-sm text-muted-foreground">
-                    Group related bookmarks with consistent naming (e.g., "Header -
-                    ...", "Data - ...")
+                    Group related bookmarks with consistent naming (e.g.,
+                    "Header - ...", "Data - ...")
                   </p>
                 </div>
               </div>
@@ -979,7 +1038,9 @@ tags:
                     <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
                       GET
                     </span>
-                    <code className="text-sm font-mono">/get/binary-by-id/:id</code>
+                    <code className="text-sm font-mono">
+                      /get/binary-by-id/:id
+                    </code>
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">
                     Get binary file metadata by ID
@@ -1022,7 +1083,9 @@ tags:
 
             {/* YAML Configurations */}
             <div>
-              <h3 className="text-2xl font-semibold mb-4">YAML Configurations</h3>
+              <h3 className="text-2xl font-semibold mb-4">
+                YAML Configurations
+              </h3>
               <div className="space-y-3">
                 <div className="border rounded-lg p-4 bg-muted/30">
                   <div className="flex items-center gap-3 mb-2">
@@ -1057,7 +1120,9 @@ tags:
                     <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
                       GET
                     </span>
-                    <code className="text-sm font-mono">/get/yaml/:configName</code>
+                    <code className="text-sm font-mono">
+                      /get/yaml/:configName
+                    </code>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Get YAML configuration content
@@ -1069,7 +1134,9 @@ tags:
                     <span className="px-2 py-1 bg-yellow-600 text-white text-xs font-bold rounded">
                       PUT
                     </span>
-                    <code className="text-sm font-mono">/update/yaml/:name</code>
+                    <code className="text-sm font-mono">
+                      /update/yaml/:name
+                    </code>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Update existing YAML configuration
@@ -1081,7 +1148,9 @@ tags:
                     <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded">
                       DELETE
                     </span>
-                    <code className="text-sm font-mono">/delete/yaml/:name</code>
+                    <code className="text-sm font-mono">
+                      /delete/yaml/:name
+                    </code>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Delete YAML configuration
@@ -1102,7 +1171,8 @@ tags:
                     <code className="text-sm font-mono">/search</code>
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">
-                    Search for patterns in binary file (16+ data types supported)
+                    Search for patterns in binary file (16+ data types
+                    supported)
                   </p>
                   <div className="bg-background rounded p-3 text-xs">
                     <p className="font-semibold mb-1">Request Body:</p>
@@ -1192,7 +1262,9 @@ tags:
                     <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
                       GET
                     </span>
-                    <code className="text-sm font-mono">/decompressed/list</code>
+                    <code className="text-sm font-mono">
+                      /decompressed/list
+                    </code>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     List all successfully decompressed files
@@ -1349,7 +1421,9 @@ tags:
                     <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
                       GET
                     </span>
-                    <code className="text-sm font-mono">/mcp/docker/health</code>
+                    <code className="text-sm font-mono">
+                      /mcp/docker/health
+                    </code>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Check MCP Docker Manager health status
@@ -1373,7 +1447,9 @@ tags:
                     <span className="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded">
                       GET
                     </span>
-                    <code className="text-sm font-mono">/mcp/docker/servers</code>
+                    <code className="text-sm font-mono">
+                      /mcp/docker/servers
+                    </code>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     List all running MCP server containers
@@ -1493,8 +1569,8 @@ tags:
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
                     <span>
-                      <strong>Dynamic Management:</strong> Start/stop servers
-                      on demand
+                      <strong>Dynamic Management:</strong> Start/stop servers on
+                      demand
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
@@ -1681,7 +1757,9 @@ tags:
             </div>
 
             <div>
-              <h3 className="text-2xl font-semibold mb-4">Setup Instructions</h3>
+              <h3 className="text-2xl font-semibold mb-4">
+                Setup Instructions
+              </h3>
               <ol className="space-y-4">
                 <li className="flex gap-4">
                   <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
@@ -1964,7 +2042,9 @@ tags:
                   <span className="font-semibold text-blue-600 dark:text-blue-400">
                     6.
                   </span>
-                  <span>Use AI Chat for specific questions about the format</span>
+                  <span>
+                    Use AI Chat for specific questions about the format
+                  </span>
                 </li>
                 <li className="flex gap-3">
                   <span className="font-semibold text-blue-600 dark:text-blue-400">
@@ -1976,7 +2056,9 @@ tags:
                   <span className="font-semibold text-blue-600 dark:text-blue-400">
                     8.
                   </span>
-                  <span>Compare multiple files to identify variable fields</span>
+                  <span>
+                    Compare multiple files to identify variable fields
+                  </span>
                 </li>
               </ol>
             </div>
@@ -1985,42 +2067,54 @@ tags:
               <h3 className="text-xl font-semibold mb-4">Pro Tips</h3>
               <ul className="space-y-3 ml-4">
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                  <span className="text-green-600 dark:text-green-400 mt-1">
+                    ✓
+                  </span>
                   <span>
                     <strong>Smaller tags are always visible:</strong> When tags
                     overlap, more specific (smaller) tags display on top
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                  <span className="text-green-600 dark:text-green-400 mt-1">
+                    ✓
+                  </span>
                   <span>
                     <strong>Quick file switching:</strong> Use the hex viewer
                     dropdown instead of the Files tab for faster navigation
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                  <span className="text-green-600 dark:text-green-400 mt-1">
+                    ✓
+                  </span>
                   <span>
-                    <strong>Server-side searches:</strong> All search operations run
-                    on the backend for better performance
+                    <strong>Server-side searches:</strong> All search operations
+                    run on the backend for better performance
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                  <span className="text-green-600 dark:text-green-400 mt-1">
+                    ✓
+                  </span>
                   <span>
-                    <strong>Apply Changes button:</strong> Prevents lag during YAML
-                    editing - apply only when ready
+                    <strong>Apply Changes button:</strong> Prevents lag during
+                    YAML editing - apply only when ready
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                  <span className="text-green-600 dark:text-green-400 mt-1">
+                    ✓
+                  </span>
                   <span>
                     <strong>Database storage:</strong> All files and configs are
                     stored in SQLite for portability
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                  <span className="text-green-600 dark:text-green-400 mt-1">
+                    ✓
+                  </span>
                   <span>
                     <strong>Copy As menu:</strong> Export selections in multiple
                     formats (hex, base64, C array, etc.)
@@ -2036,9 +2130,7 @@ tags:
                   <span className="text-orange-600 dark:text-orange-400 mt-1">
                     !
                   </span>
-                  <span>
-                    Very large files (&gt;50MB) may cause UI slowdown
-                  </span>
+                  <span>Very large files (&gt;50MB) may cause UI slowdown</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-orange-600 dark:text-orange-400 mt-1">
@@ -2058,7 +2150,9 @@ tags:
                   <span className="text-orange-600 dark:text-orange-400 mt-1">
                     !
                   </span>
-                  <span>Only one file can be viewed in the hex viewer at a time</span>
+                  <span>
+                    Only one file can be viewed in the hex viewer at a time
+                  </span>
                 </li>
               </ul>
             </div>
@@ -2130,7 +2224,9 @@ tags:
             </div>
 
             <div>
-              <h3 className="text-2xl font-semibold mb-4">REST API Endpoints</h3>
+              <h3 className="text-2xl font-semibold mb-4">
+                REST API Endpoints
+              </h3>
               <div className="space-y-2 font-mono text-sm">
                 <div className="border rounded p-3 bg-muted/50">
                   <span className="text-green-600 dark:text-green-400 font-semibold">
@@ -2145,7 +2241,9 @@ tags:
                   <span className="text-blue-600 dark:text-blue-400 font-semibold">
                     GET
                   </span>{" "}
-                  <span className="text-muted-foreground">/get/list/binary</span>
+                  <span className="text-muted-foreground">
+                    /get/list/binary
+                  </span>
                   <p className="text-xs text-muted-foreground mt-1 ml-16">
                     List all binary files
                   </p>
@@ -2154,7 +2252,9 @@ tags:
                   <span className="text-blue-600 dark:text-blue-400 font-semibold">
                     GET
                   </span>{" "}
-                  <span className="text-muted-foreground">/get/binary/:name</span>
+                  <span className="text-muted-foreground">
+                    /get/binary/:name
+                  </span>
                   <p className="text-xs text-muted-foreground mt-1 ml-16">
                     Download binary file
                   </p>
@@ -2163,7 +2263,9 @@ tags:
                   <span className="text-red-600 dark:text-red-400 font-semibold">
                     DELETE
                   </span>{" "}
-                  <span className="text-muted-foreground">/delete/binary/:name</span>
+                  <span className="text-muted-foreground">
+                    /delete/binary/:name
+                  </span>
                   <p className="text-xs text-muted-foreground mt-1 ml-16">
                     Delete binary file
                   </p>
@@ -2243,14 +2345,15 @@ tags:
                 <div className="border-l-4 border-blue-500 pl-4">
                   <h4 className="font-semibold mb-1">Virtual Scrolling</h4>
                   <p className="text-sm text-muted-foreground">
-                    The hex viewer only renders visible lines, handling large files
-                    efficiently
+                    The hex viewer only renders visible lines, handling large
+                    files efficiently
                   </p>
                 </div>
                 <div className="border-l-4 border-purple-500 pl-4">
                   <h4 className="font-semibold mb-1">Streaming Responses</h4>
                   <p className="text-sm text-muted-foreground">
-                    AI chat uses WebSocket streaming for real-time response display
+                    AI chat uses WebSocket streaming for real-time response
+                    display
                   </p>
                 </div>
               </div>
@@ -2356,7 +2459,9 @@ tags:
         {/* Main Content */}
         <main className="flex-1 overflow-hidden">
           <ScrollArea className="h-full">
-            <div className="max-w-4xl mx-auto p-8">{activeContent?.content}</div>
+            <div className="max-w-4xl mx-auto p-8">
+              {activeContent?.content}
+            </div>
           </ScrollArea>
         </main>
       </div>

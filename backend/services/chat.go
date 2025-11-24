@@ -23,6 +23,7 @@ type ChatRequest struct {
 	Messages []ChatMessageReq `json:"messages"`
 	Stream   bool             `json:"stream"`
 	Tools    []Tool           `json:"tools,omitempty"`
+	Think    interface{}      `json:"think,omitempty"` // bool (true/false) or string ("low"/"medium"/"high")
 }
 
 // Tool represents an MCP tool that can be called
@@ -64,6 +65,7 @@ type ToolCall struct {
 // StreamResponse contains the streaming response with potential tool calls
 type StreamResponse struct {
 	Content   string
+	Thinking  string     // Reasoning trace when think mode is enabled
 	ToolCalls []ToolCall
 	Done      bool
 }
@@ -118,6 +120,7 @@ func (s *ChatService) StreamChatWithTools(req ChatRequest, callback StreamCallba
 			Message   struct {
 				Role      string     `json:"role"`
 				Content   string     `json:"content"`
+				Thinking  string     `json:"thinking,omitempty"`  // Reasoning trace when think mode is enabled
 				ToolCalls []ToolCall `json:"tool_calls,omitempty"`
 			} `json:"message"`
 			Done bool `json:"done"`
@@ -134,10 +137,14 @@ func (s *ChatService) StreamChatWithTools(req ChatRequest, callback StreamCallba
 		if streamResp.Message.Content != "" {
 			log.Printf("Received content chunk: %d chars", len(streamResp.Message.Content))
 		}
+		if streamResp.Message.Thinking != "" {
+			log.Printf("Received thinking chunk: %d chars", len(streamResp.Message.Thinking))
+		}
 
 		// Build response
 		response := StreamResponse{
 			Content:   streamResp.Message.Content,
+			Thinking:  streamResp.Message.Thinking,
 			ToolCalls: streamResp.Message.ToolCalls,
 			Done:      streamResp.Done,
 		}

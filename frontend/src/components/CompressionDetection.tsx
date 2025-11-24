@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Download,
   Play,
+  Plus,
   RefreshCw,
   Trash2,
   FileArchive,
@@ -59,9 +60,16 @@ interface CompressionAnalysis {
 interface CompressionDetectionProps {
   fileId: number;
   fileName: string;
+  selection?: { start: number; end: number } | null;
+  currentBuffer?: ArrayBuffer | null;
 }
 
-export function CompressionDetection({ fileId, fileName }: CompressionDetectionProps) {
+export function CompressionDetection({
+  fileId,
+  fileName,
+  selection,
+  currentBuffer,
+}: CompressionDetectionProps) {
   const [analysis, setAnalysis] = useState<CompressionAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
@@ -93,7 +101,7 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
   const loadLatestAnalysis = async () => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/analysis/compression/file/${fileId}/latest`
+        `${API_BASE_URL}/analysis/compression/file/${fileId}/latest`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -110,7 +118,7 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
   const loadAnalysis = async (analysisId: number) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/analysis/compression/${analysisId}`
+        `${API_BASE_URL}/analysis/compression/${analysisId}`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -121,22 +129,28 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
     }
   };
 
-  const startAnalysis = async () => {
+  const startAnalysis = async (offset?: number, length?: number) => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/analysis/compression/${fileId}`,
-        {
-          method: "POST",
-        }
-      );
+      const url =
+        offset !== undefined && length !== undefined
+          ? `${API_BASE_URL}/analysis/compression/${fileId}?start_offset=${offset}&length=${length}`
+          : `${API_BASE_URL}/analysis/compression/${fileId}`;
+
+      const response = await fetch(url, {
+        method: "POST",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to start analysis");
       }
 
       const data = await response.json();
-      toast.success("Compression analysis started");
+      const analysisType =
+        offset !== undefined
+          ? "Selection compression analysis"
+          : "Compression analysis";
+      toast.success(`${analysisType} started`);
 
       // Load the new analysis
       loadAnalysis(data.analysis_id);
@@ -148,6 +162,17 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
     }
   };
 
+  const startSelectionAnalysis = () => {
+    if (!selection || !currentBuffer) {
+      toast.error("No selection available");
+      return;
+    }
+
+    const offset = selection.start;
+    const length = selection.end - selection.start;
+    startAnalysis(offset, length);
+  };
+
   const deleteAnalysis = async () => {
     if (!analysis) return;
 
@@ -156,7 +181,7 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
         `${API_BASE_URL}/analysis/compression/${analysis.id}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       if (!response.ok) {
@@ -174,7 +199,7 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
   const downloadDecompressed = async (resultId: number, method: string) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/analysis/compression/download/${resultId}`
+        `${API_BASE_URL}/analysis/compression/download/${resultId}`,
       );
 
       if (!response.ok) {
@@ -195,6 +220,32 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
     } catch (error) {
       console.error("Failed to download:", error);
       toast.error("Failed to download decompressed file");
+    }
+  };
+
+  const addDecompressedToFiles = async (resultId: number, method: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/analysis/compression/result/${resultId}/add-to-files`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to add file to binary files");
+      }
+
+      const result = await response.json();
+      toast.success(
+        `Added ${method.toUpperCase()} decompressed file to binary files`,
+      );
+
+      // Optionally trigger a file list refresh in the parent component
+      // This would need to be implemented via a callback prop
+    } catch (error) {
+      console.error("Failed to add file:", error);
+      toast.error("Failed to add file to binary files");
     }
   };
 
@@ -273,35 +324,65 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
           </div>
           <div className="flex gap-2">
             {analysis && (
-              <>
+              <div className="flex items-start flex-col text-sm text-muted-foreground mr-4 gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={loadLatestAnalysis}
                   disabled={polling}
                 >
-                  <RefreshCw className={`h-4 w-4 mr-1 ${polling ? "animate-spin" : ""}`} />
+                  <RefreshCw
+                    className={`h-4 w-4 mr-1 ${polling ? "animate-spin" : ""}`}
+                  />
                   Refresh
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={deleteAnalysis}
-                  disabled={analysis.status === "running" || analysis.status === "pending"}
+                  disabled={
+                    analysis.status === "running" ||
+                    analysis.status === "pending"
+                  }
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
                   Delete
                 </Button>
-              </>
+              </div>
             )}
-            <Button
-              onClick={startAnalysis}
-              disabled={loading || analysis?.status === "running" || analysis?.status === "pending"}
-              size="sm"
-            >
-              <Play className="h-4 w-4 mr-1" />
-              {analysis ? "Run New Analysis" : "Start Analysis"}
-            </Button>
+            <div className="flex items-start flex-col text-sm text-muted-foreground mr-4 gap-2">
+              <Button
+                onClick={startSelectionAnalysis}
+                disabled={
+                  loading ||
+                  analysis?.status === "running" ||
+                  analysis?.status === "pending" ||
+                  !selection
+                }
+                size="sm"
+                variant="outline"
+                title={
+                  selection
+                    ? `Decompress selection (0x${selection.start.toString(16)}-0x${(selection.end - 1).toString(16)})`
+                    : "No selection available"
+                }
+              >
+                <FileArchive className="h-4 w-4 mr-1" />
+                Decompress Selection
+              </Button>
+              <Button
+                onClick={startAnalysis}
+                disabled={
+                  loading ||
+                  analysis?.status === "running" ||
+                  analysis?.status === "pending"
+                }
+                size="sm"
+              >
+                <Play className="h-4 w-4 mr-1" />
+                {analysis ? "Run New Analysis" : "Start Analysis"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -329,7 +410,7 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
             <Card className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <h3 className="text-lg font-semibold">Analysis Status</h3>
                     {getStatusBadge(analysis.status)}
                   </div>
@@ -355,9 +436,11 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
                 <div className="p-4 bg-muted/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">Total Tests</p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Total Tests
+                  </p>
                   <p className="text-2xl font-bold">{analysis.total_tests}</p>
                 </div>
                 <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
@@ -369,7 +452,9 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
                   </p>
                 </div>
                 <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                  <p className="text-sm text-red-700 dark:text-red-400 mb-1">Failed</p>
+                  <p className="text-sm text-red-700 dark:text-red-400 mb-1">
+                    Failed
+                  </p>
                   <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                     {analysis.failed_count}
                   </p>
@@ -417,7 +502,10 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
                         // Sort by success, then by ratio
                         if (a.success && !b.success) return -1;
                         if (!a.success && b.success) return 1;
-                        return (b.compression_ratio || 0) - (a.compression_ratio || 0);
+                        return (
+                          (b.compression_ratio || 0) -
+                          (a.compression_ratio || 0)
+                        );
                       })
                       .map((result) => (
                         <TableRow key={result.id}>
@@ -489,7 +577,9 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
                           <TableCell>
                             {result.success ? (
                               <div className="text-xs">
-                                <div>Orig: {result.entropy_original.toFixed(2)}</div>
+                                <div>
+                                  Orig: {result.entropy_original.toFixed(2)}
+                                </div>
                                 <div className="text-muted-foreground">
                                   Dec: {result.entropy_decompressed.toFixed(2)}
                                 </div>
@@ -501,17 +591,44 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
                             )}
                           </TableCell>
                           <TableCell>
-                            {result.success && result.decompressed_file_id && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  downloadDecompressed(result.id, result.method)
-                                }
-                              >
-                                <Download className="h-3 w-3 mr-1" />
-                                Download
-                              </Button>
+                            {result.success && (
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    downloadDecompressed(
+                                      result.id,
+                                      result.method,
+                                    )
+                                  }
+                                  title={
+                                    result.decompressed_file_id
+                                      ? "Download decompressed file"
+                                      : "Download from /tmp/decompressed/"
+                                  }
+                                >
+                                  <Download className="h-3 w-3 mr-1" />
+                                  Download
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    addDecompressedToFiles(
+                                      result.id,
+                                      result.method,
+                                    )
+                                  }
+                                  title={
+                                    result.decompressed_file_id
+                                      ? "Add to binary files"
+                                      : "Add from /tmp/decompressed/ to binary files"
+                                  }
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
                             )}
                           </TableCell>
                         </TableRow>
@@ -531,9 +648,9 @@ export function CompressionDetection({ fileId, fileName }: CompressionDetectionP
                       Python Detector Integration Pending
                     </p>
                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                      The compression detection Python tool is not yet implemented.
-                      This analysis will remain in pending state until the detector
-                      is integrated.
+                      The compression detection Python tool is not yet
+                      implemented. This analysis will remain in pending state
+                      until the detector is integrated.
                     </p>
                   </div>
                 </div>

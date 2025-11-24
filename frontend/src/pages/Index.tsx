@@ -21,7 +21,6 @@ import { ECGInspector } from "@/components/ECGInspector";
 import { AdvancedVisualizations } from "@/components/AdvancedVisualizations";
 import { ComparisonPanel } from "@/components/ComparisonPanel";
 import { CompressionDetection } from "@/components/CompressionDetection";
-import { DecompressedFilesPanel } from "@/components/DecompressedFilesPanel";
 import { useHexSelection } from "@/hooks/useHexSelection";
 import { useYamlConfig } from "@/hooks/useYamlConfig";
 import {
@@ -48,6 +47,7 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { PatternSearch } from "@/components/PatternSearch";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { HighlightRange } from "@/utils/colorUtils";
+import { NotesPanel } from "@/components/NotesPanel";
 import {
   Select,
   SelectContent,
@@ -521,7 +521,11 @@ const Index = () => {
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
           {/* Left Panel */}
-          <ResizablePanel defaultSize={22} minSize={15} maxSize={35}>
+          <ResizablePanel
+            defaultSize={selectTab === "compression" ? 40 : 22}
+            minSize={15}
+            maxSize={selectTab === "compression" ? 60 : 35}
+          >
             <Tabs defaultValue="files" className="h-full flex flex-col">
               <TabsList className="grid w-full h-auto grid-cols-3 rounded-none border-b border-panel-border">
                 <TabsTrigger
@@ -603,11 +607,6 @@ const Index = () => {
                     />
                   </ResizablePanel>
                   <ResizableHandle />
-                  <ResizablePanel defaultSize={40} minSize={20}>
-                    <DecompressedFilesPanel
-                      onFileSelect={handleDecompressedFileSelect}
-                    />
-                  </ResizablePanel>
                 </ResizablePanelGroup>
               </TabsContent>
               <TabsContent
@@ -724,6 +723,8 @@ const Index = () => {
                 <CompressionDetection
                   fileId={files.find((f) => f.name === currentFile)?.id || 0}
                   fileName={currentFile || ""}
+                  selection={selection}
+                  currentBuffer={currentBuffer}
                 />
               </TabsContent>
             </Tabs>
@@ -732,7 +733,10 @@ const Index = () => {
           <ResizableHandle />
 
           {/* Center Panel - Hex Viewer */}
-          <ResizablePanel defaultSize={48} minSize={40}>
+          <ResizablePanel
+            defaultSize={selectTab === "compression" ? 30 : 48}
+            minSize={selectTab === "compression" ? 20 : 40}
+          >
             <div className="h-full flex flex-col">
               <div className="p-4 border-b border-panel-border bg-panel-header">
                 <div className="flex items-center justify-between">
@@ -809,19 +813,51 @@ const Index = () => {
           <ResizableHandle />
 
           {/* Right Panel */}
-          <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+          <ResizablePanel
+            defaultSize={selectTab === "compression" ? 30 : 30}
+            minSize={20}
+            maxSize={40}
+          >
             <ResizablePanelGroup direction="vertical">
+              {/* Top Panel - Tabs for Highlights/Notes */}
               <ResizablePanel defaultSize={40} minSize={10}>
-                <TagList
-                  highlights={highlights}
-                  onTagClick={handleTagClick}
-                  hoveredTag={hoveredTag}
-                  onTagHover={setHoveredTag}
-                />
+                <Tabs defaultValue="highlights" className="h-full flex flex-col">
+                  <TabsList className="grid w-full h-auto grid-cols-2 rounded-none border-b border-panel-border">
+                    <TabsTrigger value="highlights" className="gap-1.5">
+                      Highlights
+                    </TabsTrigger>
+                    <TabsTrigger value="notes" className="gap-1.5">
+                      Notes
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent
+                    value="highlights"
+                    className="flex-1 m-0 overflow-hidden"
+                  >
+                    <TagList
+                      highlights={highlights}
+                      onTagClick={handleTagClick}
+                      hoveredTag={hoveredTag}
+                      onTagHover={setHoveredTag}
+                    />
+                  </TabsContent>
+
+                  <TabsContent
+                    value="notes"
+                    className="flex-1 m-0 overflow-hidden"
+                  >
+                    <NotesPanel
+                      fileName={currentFile}
+                      onJumpToOffset={handleJumpToOffset}
+                    />
+                  </TabsContent>
+                </Tabs>
               </ResizablePanel>
 
               <ResizableHandle />
 
+              {/* Bottom Panel - ECG Inspector (always visible) */}
               <ResizablePanel defaultSize={60} minSize={30}>
                 <ECGInspector selection={selection} />
               </ResizablePanel>

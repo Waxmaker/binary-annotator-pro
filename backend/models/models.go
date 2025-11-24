@@ -101,6 +101,7 @@ type AISettings struct {
 	// Claude settings (encrypted in production)
 	ClaudeKey   string `json:"claude_key,omitempty"`
 	ClaudeModel string `json:"claude_model"`
+	Thinking    bool   `gorm:"default:false" json:"thinking"`
 }
 
 // ChatSession represents a chat conversation
@@ -161,14 +162,14 @@ type CompressionResult struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 
-	AnalysisID         uint    `gorm:"index;not null" json:"analysis_id"`
-	Method             string  `gorm:"not null" json:"method"` // "rle", "delta", "huffman", etc.
-	Success            bool    `json:"success"`
-	CompressionRatio   float64 `json:"compression_ratio"`   // decompressed / original
-	Confidence         float64 `json:"confidence"`          // 0.0 to 1.0
-	DecompressedSize   int64   `json:"decompressed_size"`
-	OriginalSize       int64   `json:"original_size"`
-	EntropyOriginal    float64 `json:"entropy_original"`
+	AnalysisID          uint    `gorm:"index;not null" json:"analysis_id"`
+	Method              string  `gorm:"not null" json:"method"` // "rle", "delta", "huffman", etc.
+	Success             bool    `json:"success"`
+	CompressionRatio    float64 `json:"compression_ratio"` // decompressed / original
+	Confidence          float64 `json:"confidence"`        // 0.0 to 1.0
+	DecompressedSize    int64   `json:"decompressed_size"`
+	OriginalSize        int64   `json:"original_size"`
+	EntropyOriginal     float64 `json:"entropy_original"`
 	EntropyDecompressed float64 `json:"entropy_decompressed"`
 
 	// Validation
@@ -203,12 +204,12 @@ type RAGDocument struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	UserID      string `gorm:"index;not null" json:"user_id"`      // User who uploaded the file
-	FileName    string `gorm:"not null" json:"file_name"`          // Original filename
-	FileType    string `json:"file_type"`                          // pdf, txt, md, etc.
-	FileSize    int64  `json:"file_size"`                          // File size in bytes
-	RAGDocID    uint   `json:"rag_doc_id"`                         // Document ID in RAG service
-	ChunkCount  int    `json:"chunk_count"`                        // Number of chunks created
-	Status      string `gorm:"default:'indexed'" json:"status"`    // indexed, error, deleted
-	ErrorMsg    string `json:"error_msg,omitempty"`                // Error message if failed
+	UserID     string `gorm:"index;not null" json:"user_id"`   // User who uploaded the file
+	FileName   string `gorm:"not null" json:"file_name"`       // Original filename
+	FileType   string `json:"file_type"`                       // pdf, txt, md, etc.
+	FileSize   int64  `json:"file_size"`                       // File size in bytes
+	RAGDocID   uint   `json:"rag_doc_id"`                      // Document ID in RAG service
+	ChunkCount int    `json:"chunk_count"`                     // Number of chunks created
+	Status     string `gorm:"default:'indexed'" json:"status"` // indexed, error, deleted
+	ErrorMsg   string `json:"error_msg,omitempty"`             // Error message if failed
 }

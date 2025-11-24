@@ -11,9 +11,10 @@ COPY . .
 RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o binary-annotator-pro .
 
 # ---- Runtime Alpine: Python + Go ----
-FROM alpine:3.20
+FROM python:3.12-alpine
 
 WORKDIR /app
+COPY ./python_tools /app/python_tools
 
 # Copy Go binary
 COPY --from=builder /app/binary-annotator-pro .

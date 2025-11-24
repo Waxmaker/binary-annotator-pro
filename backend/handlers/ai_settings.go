@@ -38,6 +38,7 @@ func (h *AISettingsHandler) GetAISettings(c echo.Context) error {
 				"openai_model":  "gpt-4",
 				"claude_model":  "claude-3-5-sonnet-20241022",
 				"user_id":       userID,
+				"thinking":      false,
 				"is_configured": false,
 			})
 		}
@@ -57,18 +58,19 @@ func (h *AISettingsHandler) GetAISettings(c echo.Context) error {
 
 	// Don't send API keys to frontend (they stay on backend)
 	response := map[string]interface{}{
-		"id":              settings.ID,
-		"user_id":         settings.UserID,
-		"provider":        settings.Provider,
-		"ollama_url":      settings.OllamaURL,
-		"ollama_model":    settings.OllamaModel,
-		"openai_model":    settings.OpenAIModel,
-		"claude_model":    settings.ClaudeModel,
-		"is_configured":   isConfigured,
-		"has_openai_key":  settings.OpenAIKey != "",
-		"has_claude_key":  settings.ClaudeKey != "",
-		"created_at":      settings.CreatedAt,
-		"updated_at":      settings.UpdatedAt,
+		"id":             settings.ID,
+		"user_id":        settings.UserID,
+		"provider":       settings.Provider,
+		"ollama_url":     settings.OllamaURL,
+		"ollama_model":   settings.OllamaModel,
+		"openai_model":   settings.OpenAIModel,
+		"claude_model":   settings.ClaudeModel,
+		"thinking":       settings.Thinking,
+		"is_configured":  isConfigured,
+		"has_openai_key": settings.OpenAIKey != "",
+		"has_claude_key": settings.ClaudeKey != "",
+		"created_at":     settings.CreatedAt,
+		"updated_at":     settings.UpdatedAt,
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -111,6 +113,7 @@ func (h *AISettingsHandler) SaveAISettings(c echo.Context) error {
 	existing.OllamaModel = req.OllamaModel
 	existing.OpenAIModel = req.OpenAIModel
 	existing.ClaudeModel = req.ClaudeModel
+	existing.Thinking = req.Thinking
 
 	// Only update API keys if provided (non-empty)
 	if req.OpenAIKey != "" {
