@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { formatAddress } from "@/utils/binaryUtils";
 import { convertBytesECG, formatHexBytesSpaced } from "@/utils/conversionsECG";
 import {
@@ -26,6 +27,7 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
   const { settings, isConfigured } = useAISettings();
   const [aiPrediction, setAiPrediction] = useState<string | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [xorKey, setXorKey] = useState<string>("");
 
   const handleCopyKaitai = () => {
     if (!selection) return;
@@ -93,7 +95,7 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
     );
   }
 
-  const conversions = convertBytesECG(selection.bytes);
+  const conversions = convertBytesECG(selection.bytes, xorKey);
   const size = selection.end - selection.start + 1;
   const suggestedType = suggestFieldType(selection.bytes);
 
@@ -338,6 +340,90 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
             </Card>
           </div>
         )}
+
+        {/* XOR Decoder */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold text-foreground flex items-center gap-2">
+            <span className="text-primary">▸</span> XOR Decoder
+          </h3>
+          <Card className="p-3 space-y-3 bg-primary/5 border-primary/20">
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">
+                XOR Key (hex):
+              </label>
+              <Input
+                type="text"
+                placeholder="e.g., FF or AB CD or 1234"
+                value={xorKey}
+                onChange={(e) => {
+                  // Clean and normalize input: remove non-hex characters except spaces
+                  const cleaned = e.target.value
+                    .toUpperCase()
+                    .replace(/[^0-9A-F\s]/g, '');
+                  setXorKey(cleaned);
+                }}
+                className="h-8 text-xs font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground italic">
+                Enter hex bytes (with or without spaces). Key repeats if shorter than data.
+              </p>
+              {xorKey && (
+                <p className="text-[10px] font-mono text-accent">
+                  Key length: {xorKey.replace(/\s+/g, '').length / 2} byte(s)
+                </p>
+              )}
+            </div>
+
+            {conversions.xorHex && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-muted-foreground">XOR Result (Hex):</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 px-1.5"
+                        onClick={() => {
+                          navigator.clipboard.writeText(conversions.xorHex || "");
+                          toast.success("Hex copied!");
+                        }}
+                        title="Copy hex"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <p className="text-xs font-mono text-accent break-all leading-relaxed">
+                      {conversions.xorHex}
+                    </p>
+                  </div>
+                  <Separator />
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-muted-foreground">XOR Result (ASCII):</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 px-1.5"
+                        onClick={() => {
+                          navigator.clipboard.writeText(conversions.xorAscii || "");
+                          toast.success("ASCII copied!");
+                        }}
+                        title="Copy ASCII"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <p className="text-xs font-mono text-accent break-all">
+                      {conversions.xorAscii}
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </Card>
+        </div>
 
         {/* TODO: Go Backend Integration */}
         <Card className="p-3 bg-muted/30 border-dashed">
