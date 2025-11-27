@@ -16,21 +16,16 @@ export interface ECGConversions {
   float32BE: number;
   float64LE: number;
   float64BE: number;
-
+  
   // ECG-specific conversions
   signed12bit: number | null;
   packed3byte: number | null;
   amplitudeMV: number | null;
   bitFlags: string;
-
+  
   // Text
   ascii: string;
   utf8: string;
-
-  // XOR decoding
-  xorResult: number[] | null;
-  xorAscii: string | null;
-  xorHex: string | null;
 }
 
 /**
@@ -88,25 +83,16 @@ export function formatBitFlags(byte: number): string {
 
 /**
  * Convert bytes with all ECG-specific interpretations
- * @param bytes - The input bytes to convert
- * @param xorKey - Optional hex key for XOR decoding (e.g., "FF", "ABCD")
  */
-export function convertBytesECG(bytes: number[], xorKey?: string): ECGConversions {
+export function convertBytesECG(bytes: number[]): ECGConversions {
   const buffer = new ArrayBuffer(Math.max(8, bytes.length));
   const view = new DataView(buffer);
-
+  
   // Fill buffer with bytes
   bytes.forEach((byte, i) => {
     view.setUint8(i, byte);
   });
-
-  // Apply XOR if key provided
-  const xorResult = xorKey ? applyXOR(bytes, xorKey) : null;
-  const xorAscii = xorResult
-    ? xorResult.map(b => (b >= 32 && b <= 126 ? String.fromCharCode(b) : '.')).join('')
-    : null;
-  const xorHex = xorResult ? formatHexBytesSpaced(xorResult) : null;
-
+  
   // Standard conversions
   const conversions: ECGConversions = {
     uint8: bytes.length > 0 ? view.getUint8(0) : 0,
@@ -123,23 +109,18 @@ export function convertBytesECG(bytes: number[], xorKey?: string): ECGConversion
     float32BE: bytes.length >= 4 ? view.getFloat32(0, false) : 0,
     float64LE: bytes.length >= 8 ? view.getFloat64(0, true) : 0,
     float64BE: bytes.length >= 8 ? view.getFloat64(0, false) : 0,
-
+    
     // ECG-specific
     signed12bit: extract12BitSigned(bytes),
     packed3byte: extract3BytePacked(bytes),
     amplitudeMV: bytes.length >= 2 ? convertToMillivolts(view.getInt16(0, true)) : null,
     bitFlags: bytes.length > 0 ? formatBitFlags(bytes[0]) : '00000000',
-
+    
     // Text
     ascii: bytes.map(b => (b >= 32 && b <= 126 ? String.fromCharCode(b) : '.')).join(''),
     utf8: new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(bytes)),
-
-    // XOR
-    xorResult,
-    xorAscii,
-    xorHex,
   };
-
+  
   return conversions;
 }
 
@@ -156,40 +137,13 @@ export function formatHexBytesSpaced(bytes: number[]): string {
 export function parseHexPattern(pattern: string): number[] {
   const cleaned = pattern.replace(/\s+/g, '');
   const bytes: number[] = [];
-
+  
   for (let i = 0; i < cleaned.length; i += 2) {
     const byteStr = cleaned.substr(i, 2);
     if (byteStr.length === 2) {
       bytes.push(parseInt(byteStr, 16));
     }
   }
-
+  
   return bytes;
-}
-
-/**
- * Apply XOR operation with a hex key to bytes
- * @param bytes - The input bytes to XOR
- * @param hexKey - Hex key string (e.g., "FF", "ABCD", "12 34 56")
- * @returns XOR result as bytes array, or null if key is invalid
- */
-export function applyXOR(bytes: number[], hexKey: string): number[] | null {
-  if (!hexKey || hexKey.trim() === '') {
-    return null;
-  }
-
-  try {
-    const keyBytes = parseHexPattern(hexKey);
-    if (keyBytes.length === 0) {
-      return null;
-    }
-
-    // Apply XOR with repeating key
-    return bytes.map((byte, index) => {
-      const keyByte = keyBytes[index % keyBytes.length];
-      return byte ^ keyByte;
-    });
-  } catch (error) {
-    return null;
-  }
 }
