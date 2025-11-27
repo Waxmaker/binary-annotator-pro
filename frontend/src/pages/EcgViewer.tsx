@@ -32,11 +32,21 @@ const EcgViewer = () => {
 
   const initialState = loadInitialState();
 
-  const { samples, timestamps, multiLeadData, error, parseSamples, getStats, selectLead } = useSamples();
+  const {
+    samples,
+    timestamps,
+    multiLeadData,
+    error,
+    parseSamples,
+    getStats,
+    selectLead,
+  } = useSamples();
   const [selectedIndex, setSelectedIndex] = useState<number | undefined>(
     undefined,
   );
-  const [selectedLead, setSelectedLead] = useState<number>(initialState?.selectedLead ?? 0);
+  const [selectedLead, setSelectedLead] = useState<number>(
+    initialState?.selectedLead ?? 0,
+  );
 
   const [zoom, setZoom] = useState(initialState?.zoom ?? 1);
   const [offset, setOffset] = useState(initialState?.offset ?? 0);
@@ -60,6 +70,12 @@ const EcgViewer = () => {
     },
   );
 
+  const [convertedData, setConvertedData] = useState<any>(null);
+  const [rawData, setRawData] = useState<any>(null);
+  const [showRaw, setShowRaw] = useState(true);
+  const [showConverted, setShowConverted] = useState(true);
+  const [overlayMode, setOverlayMode] = useState(false);
+
   // Load samples from localStorage on mount
   useEffect(() => {
     if (initialState?.inputText) {
@@ -78,6 +94,57 @@ const EcgViewer = () => {
   const handleLeadChange = (leadIndex: number) => {
     setSelectedLead(leadIndex);
     selectLead(leadIndex);
+  };
+
+  // Handle converted data from conversion tool
+  const handleConvertedData = (data: any) => {
+    console.log("Converted data received:", data);
+
+    // Store current data as raw before conversion
+    if (samples.length > 0) {
+      const raw = {
+        samples: [...samples],
+        timestamps:
+          timestamps.length > 0 ? [...timestamps] : samples.map((_, i) => i),
+        multiLeadData: multiLeadData
+          ? JSON.parse(JSON.stringify(multiLeadData))
+          : null,
+      };
+      console.log("Raw data stored:", raw);
+      setRawData(raw);
+    }
+
+    // Ensure converted data has the correct structure
+    if (!data.samples || !Array.isArray(data.samples)) {
+      console.error("Invalid converted data: samples is not an array", data);
+      return;
+    }
+
+    const formattedConvertedData = {
+      samples: data.samples,
+      timestamps: data.timestamps || data.samples.map((_: any, i: number) => i),
+      multiLeadData:
+        data.type === "multi-lead" && data.leadNames && data.leads
+          ? {
+              leadNames: data.leadNames,
+              leads: data.leads,
+            }
+          : null,
+    };
+
+    console.log("Formatted converted data:", formattedConvertedData);
+    console.log("Converted data validation:", {
+      hasSamples: formattedConvertedData.samples.length > 0,
+      samplesLength: formattedConvertedData.samples.length,
+      firstSample: formattedConvertedData.samples[0],
+      lastSample:
+        formattedConvertedData.samples[
+          formattedConvertedData.samples.length - 1
+        ],
+    });
+
+    setConvertedData(formattedConvertedData);
+    setOverlayMode(true); // Auto-enable overlay mode when conversion happens
   };
 
   // Save state to localStorage whenever it changes
@@ -136,6 +203,14 @@ const EcgViewer = () => {
               onSettingsChange={setSettings}
               inputText={inputText}
               onInputTextChange={setInputText}
+              onConvertedData={handleConvertedData}
+              overlayMode={overlayMode}
+              showRaw={showRaw}
+              showConverted={showConverted}
+              onOverlayModeChange={setOverlayMode}
+              onShowRawChange={setShowRaw}
+              onShowConvertedChange={setShowConverted}
+              hasConvertedData={!!convertedData}
             />
           </ResizablePanel>
 
@@ -154,6 +229,11 @@ const EcgViewer = () => {
               multiLeadData={multiLeadData}
               selectedLead={selectedLead}
               onLeadChange={handleLeadChange}
+              overlayMode={overlayMode}
+              showRaw={showRaw}
+              showConverted={showConverted}
+              rawData={rawData}
+              convertedData={convertedData}
             />
           </ResizablePanel>
 
@@ -162,12 +242,17 @@ const EcgViewer = () => {
           {/* Right Panel - Sample Inspector */}
           <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
             <SampleInspector
-              samples={samples}
-              timestamps={timestamps}
+              samples={overlayMode && convertedData ? convertedData.samples : samples}
+              timestamps={
+                overlayMode && convertedData ? convertedData.timestamps : timestamps
+              }
               stats={stats}
               settings={settings}
               selectedIndex={selectedIndex}
               onSelectIndex={setSelectedIndex}
+              overlayMode={overlayMode}
+              rawData={rawData}
+              convertedData={convertedData}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

@@ -216,3 +216,30 @@ export async function searchBinary(
 
   return res.json();
 }
+
+// CSV Processing API
+export interface CSVParseResponse {
+  type: "multi-lead" | "timestamp-value" | "simple";
+  samples?: number[];
+  timestamps?: number[];
+  leadNames?: string[];
+  leads?: number[][];
+  count: number;
+}
+
+export async function parseCSV(csvData: string): Promise<CSVParseResponse> {
+  const res = await fetch(`${API_BASE_URL}/parse/csv`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain",
+    },
+    body: csvData,
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "CSV parsing failed");
+  }
+
+  return res.json();
+}

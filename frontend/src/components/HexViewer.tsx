@@ -270,19 +270,19 @@ export function HexViewer({
   }
 
   const display_selection = () => {
-    if (selection) {
-      return (
-        <div className="items-center gap-2 flex align-center justify-between w-full text-xs">
-          <span className="font-mono text-hex-address">
-            Selected: 0x{selection.start.toString(16).toUpperCase()} - 0x
-            {selection.end}
-          </span>
-          <span className="font-mono text-hex-address">
-            Size: {selection.end - selection.start + 1} bytes
-          </span>
-        </div>
-      );
-    }
+    return (
+      <div className="items-center gap-2 flex align-center justify-between w-full text-xs">
+        <span className="font-mono text-hex-address">
+          {!selection
+            ? "N/A"
+            : `Selected: 0x${selection.start.toString(16).toUpperCase()}`}
+          {!selection ? "" : ` - 0x${selection.end.toString(16).toUpperCase()}`}
+        </span>
+        <span className="font-mono text-hex-address">
+          Size: {!selection ? "N/A" : selection.end - selection.start + 1} bytes
+        </span>
+      </div>
+    );
   };
 
   return (
@@ -359,20 +359,18 @@ export function HexViewer({
           )}
         </div>
       </div>
-      {selection && selection.bytes.length > 0 ? (
-        <div
-          id="display_address_info_selection"
-          className="flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2"
-        >
-          <div className="relative">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <p>{display_selection()}</p>
-              </div>
+      <div
+        id="display_address_info_selection"
+        className="flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2"
+      >
+        <div className="relative">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <p>{display_selection()}</p>
             </div>
           </div>
         </div>
-      ) : null}
+      </div>
 
       {/* Hex View */}
       <div

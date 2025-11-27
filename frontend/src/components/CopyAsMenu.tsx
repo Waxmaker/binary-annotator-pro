@@ -30,17 +30,23 @@ export const CopyAsMenu = ({ selection }: CopyAsMenuProps) => {
       switch (format) {
         case "hex":
           // Simple hex string: "4A6F686E"
-          output = bytes.map((b) => b.toString(16).padStart(2, "0").toUpperCase()).join("");
+          output = bytes
+            .map((b) => b.toString(16).padStart(2, "0").toUpperCase())
+            .join("");
           break;
 
         case "hex-spaced":
           // Hex with spaces: "4A 6F 68 6E"
-          output = bytes.map((b) => b.toString(16).padStart(2, "0").toUpperCase()).join(" ");
+          output = bytes
+            .map((b) => b.toString(16).padStart(2, "0").toUpperCase())
+            .join(" ");
           break;
 
         case "hex-0x":
           // Hex with 0x prefix: "0x4A, 0x6F, 0x68, 0x6E"
-          output = bytes.map((b) => `0x${b.toString(16).padStart(2, "0").toUpperCase()}`).join(", ");
+          output = bytes
+            .map((b) => `0x${b.toString(16).padStart(2, "0").toUpperCase()}`)
+            .join(", ");
           break;
 
         case "base64":
@@ -54,14 +60,17 @@ export const CopyAsMenu = ({ selection }: CopyAsMenuProps) => {
 
         case "c-array":
           // C array format: unsigned char data[] = { 0x4A, 0x6F, 0x68, 0x6E };
-          const hexBytes = bytes.map((b) => `0x${b.toString(16).padStart(2, "0").toUpperCase()}`);
+          const hexBytes = bytes.map(
+            (b) => `0x${b.toString(16).padStart(2, "0").toUpperCase()}`,
+          );
           const lines: string[] = [];
           lines.push("unsigned char data[] = {");
 
           // Format in rows of 12 bytes for readability
           for (let i = 0; i < hexBytes.length; i += 12) {
             const chunk = hexBytes.slice(i, i + 12);
-            const line = "    " + chunk.join(", ") + (i + 12 < hexBytes.length ? "," : "");
+            const line =
+              "    " + chunk.join(", ") + (i + 12 < hexBytes.length ? "," : "");
             lines.push(line);
           }
 
@@ -72,18 +81,36 @@ export const CopyAsMenu = ({ selection }: CopyAsMenuProps) => {
 
         case "python-bytes":
           // Python bytes: b'\x4a\x6f\x68\x6e'
-          output = "b'" + bytes.map((b) => `\\x${b.toString(16).padStart(2, "0")}`).join("") + "'";
+          output =
+            "b'" +
+            bytes.map((b) => `\\x${b.toString(16).padStart(2, "0")}`).join("") +
+            "'";
           break;
 
         case "go-slice":
           // Go byte slice: []byte{0x4A, 0x6F, 0x68, 0x6E}
-          const goBytes = bytes.map((b) => `0x${b.toString(16).padStart(2, "0").toUpperCase()}`);
+          const goBytes = bytes.map(
+            (b) => `0x${b.toString(16).padStart(2, "0").toUpperCase()}`,
+          );
           output = "[]byte{" + goBytes.join(", ") + "}";
           break;
 
         case "decimal":
           // Decimal values: "74, 111, 104, 110"
           output = bytes.join(", ");
+          break;
+        case "bits":
+          // Bits representation: "01001010 01101111 01101000 01101110"
+          //  Pad each byte to 8 bits
+          const fullBitString = bytes
+            .map((b) => b.toString(2).padStart(8, "0"))
+            .join("");
+
+          // Découpe en chunks de 6 bits
+          const chunks = fullBitString.match(/.{1,6}/g) || [];
+
+          // Join avec espace
+          output = chunks.join(" ");
           break;
 
         default:
@@ -147,6 +174,9 @@ export const CopyAsMenu = ({ selection }: CopyAsMenuProps) => {
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => handleCopy("decimal")}>
           Decimal
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleCopy("bits")}>
+          Bits (6-bit blocks)
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

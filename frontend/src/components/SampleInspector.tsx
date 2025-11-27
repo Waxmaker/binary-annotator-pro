@@ -10,6 +10,9 @@ interface SampleInspectorProps {
   settings: EcgSettings;
   selectedIndex?: number;
   onSelectIndex?: (index: number) => void;
+  overlayMode?: boolean;
+  rawData?: any;
+  convertedData?: any;
 }
 
 export function SampleInspector({
@@ -19,6 +22,9 @@ export function SampleInspector({
   settings,
   selectedIndex,
   onSelectIndex,
+  overlayMode = false,
+  rawData,
+  convertedData,
 }: SampleInspectorProps) {
   // Calculate actual duration from timestamps if available
   const hasTimestamps = timestamps.length > 0;
@@ -27,6 +33,14 @@ export function SampleInspector({
     : stats
     ? (stats.count / settings.horizontalScale).toFixed(2)
     : "0";
+
+  // Calculate stats for converted data if available
+  const convertedStats = convertedData?.samples ? {
+    count: convertedData.samples.length,
+    min: Math.min(...convertedData.samples),
+    max: Math.max(...convertedData.samples),
+    mean: convertedData.samples.reduce((a: number, b: number) => a + b, 0) / convertedData.samples.length,
+  } : null;
 
   return (
     <div className="h-full flex flex-col">
@@ -37,9 +51,33 @@ export function SampleInspector({
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Overlay Mode Indicator */}
+        {overlayMode && (
+          <div className="p-3 bg-blue-50 border-b border-blue-200">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-xs font-medium text-blue-800">Overlay Mode Active</span>
+            </div>
+          </div>
+        )}
+
         {/* Stats Overview */}
         <div className="p-4 space-y-3">
-          <h3 className="text-xs font-semibold text-foreground">Overview</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-foreground">Overview</h3>
+            {overlayMode && (
+              <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span>Raw</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Converted</span>
+                </div>
+              </div>
+            )}
+          </div>
           {stats ? (
             <div className="grid grid-cols-2 gap-2">
               <Card className="bg-accent/10">
@@ -88,6 +126,50 @@ export function SampleInspector({
               No samples loaded
             </div>
           )}
+
+        {/* Converted Data Stats (Overlay Mode) */}
+        {overlayMode && convertedStats && (
+          <div className="p-4 border-t border-panel-border">
+            <h3 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              Converted Data (µV)
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-3">
+                  <div className="text-xs text-blue-600">Min Value</div>
+                  <div className="text-lg font-semibold text-blue-800">
+                    {convertedStats.min.toFixed(2)}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-3">
+                  <div className="text-xs text-blue-600">Max Value</div>
+                  <div className="text-lg font-semibold text-blue-800">
+                    {convertedStats.max.toFixed(2)}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-3">
+                  <div className="text-xs text-blue-600">Mean</div>
+                  <div className="text-lg font-semibold text-blue-800">
+                    {convertedStats.mean.toFixed(2)}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-3">
+                  <div className="text-xs text-blue-600">Sample Count</div>
+                  <div className="text-lg font-semibold text-blue-800">
+                    {convertedStats.count}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
         </div>
 
         {/* Sample Explorer */}

@@ -1,6 +1,16 @@
 import { useEffect, useRef } from "react";
 import { EcgSettings } from "@/components/EcgSettings";
 
+// ECG Data structure
+interface ECGData {
+  samples: number[];
+  timestamps?: number[];
+  multiLeadData?: {
+    leadNames: string[];
+    leads: number[][];
+  } | null;
+}
+
 interface UseECGRendererProps {
   samples: number[];
   settings: EcgSettings;
@@ -9,6 +19,11 @@ interface UseECGRendererProps {
   selectedIndex?: number;
   zoom?: number;
   offset?: number;
+  overlayMode?: boolean;
+  showRaw?: boolean;
+  showConverted?: boolean;
+  rawData?: any;
+  convertedData?: any;
 }
 
 export function useECGRenderer({
@@ -19,6 +34,11 @@ export function useECGRenderer({
   selectedIndex,
   zoom = 1,
   offset = 0,
+  overlayMode = false,
+  showRaw = true,
+  showConverted = true,
+  rawData,
+  convertedData,
 }: UseECGRendererProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -98,21 +118,186 @@ export function useECGRenderer({
       }
     }
 
-    // Draw waveform
-    ctx.strokeStyle = settings.derivativeHighlight ? "#ff0000" : "#e74c3c";
-    ctx.lineWidth = settings.lineWidth;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+    // Draw waveforms based on overlay mode
+    const drawWaveform = (waveSamples: number[], color: string, alpha: number = 1) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = settings.lineWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.globalAlpha = alpha;
 
-    ctx.beginPath();
-    if (settings.lineStyle === "smooth") {
-      drawSmoothCurve(ctx, points);
-    } else if (settings.lineStyle === "step") {
-      drawStepCurve(ctx, points);
+      ctx.beginPath();
+      if (settings.lineStyle === "smooth") {
+        drawSmoothCurve(ctx, points);
+      } else if (settings.lineStyle === "step") {
+        drawStepCurve(ctx, points);
+      } else {
+        drawLinearCurve(ctx, points);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    };
+
+    // Debug logs
+    console.log("Render state:", { 
+      overlayMode, 
+      showRaw, 
+      showConverted, 
+      hasRawData: !!rawData, 
+      hasConvertedData: !!convertedData,
+      rawSamplesLength: rawData?.samples?.length,
+      convertedSamplesLength: convertedData?.samples?.length
+    });
+
+    if (overlayMode && rawData && convertedData) {
+      console.log("Drawing overlay mode");
+
+      // Calculate visible range for both datasets (use the same range for alignment)
+      const maxLength = Math.max(rawData.samples?.length || 0, convertedData.samples?.length || 0);
+      const samplesPerView = Math.max(10, Math.floor(maxLength / zoom));
+      const startIdx = Math.min(offset, Math.max(0, maxLength - samplesPerView));
+      const endIdx = Math.min(startIdx + samplesPerView, maxLength);
+
+      // Collect all visible samples from both datasets for unified scaling
+      let allVisibleSamples: number[] = [];
+      if (showRaw && rawData.samples && rawData.samples.length > 0) {
+        const rawVis = rawData.samples.slice(startIdx, Math.min(endIdx, rawData.samples.length));
+        allVisibleSamples = allVisibleSamples.concat(rawVis);
+      }
+      if (showConverted && convertedData.samples && convertedData.samples.length > 0) {
+        const convVis = convertedData.samples.slice(startIdx, Math.min(endIdx, convertedData.samples.length));
+        allVisibleSamples = allVisibleSamples.concat(convVis);
+      }
+
+      // Calculate unified scale parameters (so both curves use the same scale)
+      let globalMin = Math.min(...allVisibleSamples);
+      let globalMax = Math.max(...allVisibleSamples);
+      let globalRange = globalMax - globalMin || 1;
+      let globalAbsMax = Math.max(...allVisibleSamples.map(Math.abs));
+
+      console.log("Unified scaling:", { globalMin, globalMax, globalRange, globalAbsMax });
+
+      // Draw raw data (red) if enabled
+      if (showRaw && rawData.samples && rawData.samples.length > 0) {
+        try {
+          console.log("Drawing raw data, samples:", rawData.samples.length);
+
+          const rawVisibleSamples = rawData.samples.slice(startIdx, Math.min(endIdx, rawData.samples.length));
+          let rawProcessed = [...rawVisibleSamples];
+
+          // Use UNIFIED scaling instead of independent scaling
+          if (settings.normalize) {
+            rawProcessed = rawVisibleSamples.map((s) => ((s - globalMin) / globalRange) * 2 - 1);
+          }
+
+          if (settings.autoScale && !settings.normalize) {
+            if (globalAbsMax > 0) {
+              rawProcessed = rawProcessed.map((s) => s / globalAbsMax);
+            }
+          }
+
+          const rawSpacing = (width - 40) / (rawProcessed.length - 1 || 1);
+          const rawPoints = rawProcessed.map((val, idx) => ({
+            x: 20 + idx * rawSpacing,
+            y: centerY - val * settings.verticalScale * 50,
+          }));
+
+          ctx.strokeStyle = "#ff4444";
+          ctx.lineWidth = settings.lineWidth;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.globalAlpha = 0.7;
+
+          ctx.beginPath();
+          if (settings.lineStyle === "smooth") {
+            drawSmoothCurve(ctx, rawPoints);
+          } else if (settings.lineStyle === "step") {
+            drawStepCurve(ctx, rawPoints);
+          } else {
+            drawLinearCurve(ctx, rawPoints);
+          }
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          console.log("Raw data drawn successfully");
+        } catch (error) {
+          console.error("Error drawing raw data:", error);
+        }
+      }
+
+      // Draw converted data (blue) if enabled
+      if (showConverted && convertedData.samples && convertedData.samples.length > 0) {
+        try {
+          console.log("Drawing converted data, samples:", convertedData.samples.length);
+          console.log("Converted data structure:", convertedData);
+
+          const convertedVisibleSamples = convertedData.samples.slice(startIdx, Math.min(endIdx, convertedData.samples.length));
+          let convertedProcessed = [...convertedVisibleSamples];
+
+          // Use UNIFIED scaling instead of independent scaling
+          if (settings.normalize) {
+            convertedProcessed = convertedVisibleSamples.map((s) => ((s - globalMin) / globalRange) * 2 - 1);
+          }
+
+          if (settings.autoScale && !settings.normalize) {
+            if (globalAbsMax > 0) {
+              convertedProcessed = convertedProcessed.map((s) => s / globalAbsMax);
+            }
+          }
+
+          const convertedSpacing = (width - 40) / (convertedProcessed.length - 1 || 1);
+          const convertedPoints = convertedProcessed.map((val, idx) => ({
+            x: 20 + idx * convertedSpacing,
+            y: centerY - val * settings.verticalScale * 50,
+          }));
+
+          ctx.strokeStyle = "#4444ff";
+          ctx.lineWidth = settings.lineWidth;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.globalAlpha = 0.7;
+
+          ctx.beginPath();
+          if (settings.lineStyle === "smooth") {
+            drawSmoothCurve(ctx, convertedPoints);
+          } else if (settings.lineStyle === "step") {
+            drawStepCurve(ctx, convertedPoints);
+          } else {
+            drawLinearCurve(ctx, convertedPoints);
+          }
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          console.log("Converted data drawn successfully");
+        } catch (error) {
+          console.error("Error drawing converted data:", error);
+        }
+      }
+
+      // Draw legend
+      ctx.globalAlpha = 1;
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      
+      let legendY = 10;
+      if (showRaw && rawData.samples) {
+        ctx.fillStyle = "#ff4444";
+        ctx.fillRect(10, legendY, 15, 3);
+        ctx.fillStyle = "#333";
+        ctx.fillText("Raw", 30, legendY - 2);
+        legendY += 20;
+      }
+      
+      if (showConverted && convertedData.samples) {
+        ctx.fillStyle = "#4444ff";
+        ctx.fillRect(10, legendY, 15, 3);
+        ctx.fillStyle = "#333";
+        ctx.fillText("Converted (µV)", 30, legendY - 2);
+      }
+
     } else {
-      drawLinearCurve(ctx, points);
+      // Single waveform mode
+      drawWaveform(processedSamples, settings.derivativeHighlight ? "#ff0000" : "#e74c3c");
     }
-    ctx.stroke();
 
     // Mark R-peaks
     if (settings.rpeakDetection && rpeaks.length > 0) {
@@ -135,7 +320,7 @@ export function useECGRenderer({
         ctx.stroke();
       }
     }
-  }, [samples, settings, width, height, selectedIndex, zoom, offset]);
+  }, [samples, settings, width, height, selectedIndex, zoom, offset, overlayMode, showRaw, showConverted, rawData, convertedData]);
 
   return canvasRef;
 }

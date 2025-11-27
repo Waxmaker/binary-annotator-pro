@@ -94,4 +94,11 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.DELETE("/rag/documents/:id", ragFilesHandler.DeleteDocument)
 	e.GET("/rag/stats", ragFilesHandler.GetDocumentStats)
 	e.POST("/rag/search", ragFilesHandler.SearchRAG)
+
+	// CSV Processing
+	e.POST("/parse/csv", h.ParseCSV)
+
+	// ECG Conversion
+	e.POST("/convert/ecg", h.ConvertECGData)
+
 }

@@ -3,9 +3,12 @@ package handlers
 import (
 	"binary-annotator-pro/config"
 	"binary-annotator-pro/models"
+	"encoding/csv"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -322,6 +325,282 @@ func (h *Handler) UpdateYamlConfig(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"id": yc.ID, "name": yc.Name, "file_id": yc.FileID})
+}
+
+// ParseCSV: parse CSV data and return processed samples
+func (h *Handler) ParseCSV(c echo.Context) error {
+	// Get CSV data from request body
+	csvData, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "failed to read request body"})
+	}
+
+	if len(csvData) == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "empty CSV data"})
+	}
+
+	// Parse CSV content
+	reader := csv.NewReader(strings.NewReader(string(csvData)))
+	records, err := reader.ReadAll()
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid CSV format: " + err.Error()})
+	}
+
+	if len(records) == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "CSV file is empty"})
+	}
+
+	// Check if it's multi-lead format (Lead_0, Lead_1, etc.)
+	if len(records) > 0 && len(records[0]) > 0 && strings.Contains(records[0][0], "Lead_") {
+		return parseMultiLeadCSV(records, c)
+	}
+
+	// Check if it's timestamp,value format
+	if len(records) > 0 && (strings.Contains(strings.ToLower(records[0][0]), "timestamp") ||
+		(len(records[0]) >= 2 && strings.Contains(strings.ToLower(records[0][0]), "time"))) {
+		return parseTimestampValueCSV(records, c)
+	}
+
+	// Default: treat as simple value columns
+	return parseSimpleCSV(records, c)
+}
+
+// parseMultiLeadCSV handles multi-lead CSV data
+func parseMultiLeadCSV(records [][]string, c echo.Context) error {
+	if len(records) < 2 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "multi-lead CSV must have header and at least one data row"})
+	}
+
+	// Parse header to get lead names
+	leadNames := make([]string, len(records[0]))
+	for i, name := range records[0] {
+		leadNames[i] = strings.TrimSpace(name)
+	}
+
+	// Initialize leads array
+	leads := make([][]float64, len(leadNames))
+	for i := range leads {
+		leads[i] = make([]float64, 0, len(records)-1)
+	}
+
+	// Parse data lines
+	for i := 1; i < len(records); i++ {
+		if len(records[i]) != len(leadNames) {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": fmt.Sprintf("invalid multi-lead CSV format on line %d. Expected %d columns, got %d",
+					i+1, len(leadNames), len(records[i])),
+			})
+		}
+
+		for j, valueStr := range records[i] {
+			value, err := strconv.ParseFloat(strings.TrimSpace(valueStr), 64)
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{
+					"error": fmt.Sprintf("invalid value on line %d, column %s: \"%s\"", i+1, leadNames[j], valueStr),
+				})
+			}
+			leads[j] = append(leads[j], value)
+		}
+	}
+
+	// Check if we have any data
+	if len(leads[0]) == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "no valid samples found in multi-lead CSV"})
+	}
+
+	// Create timestamps (0, 1, 2, ...) for multi-lead data
+	timestamps := make([]float64, len(leads[0]))
+	for i := range timestamps {
+		timestamps[i] = float64(i)
+	}
+
+	// Return processed data
+	response := map[string]interface{}{
+		"type":       "multi-lead",
+		"leadNames":  leadNames,
+		"leads":      leads,
+		"samples":    leads[0], // Default to first lead for backward compatibility
+		"timestamps": timestamps,
+		"count":      len(leads[0]),
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// parseTimestampValueCSV handles timestamp,value CSV data
+func parseTimestampValueCSV(records [][]string, c echo.Context) error {
+	// Skip header if present
+	startIdx := 0
+	if len(records) > 0 && (strings.Contains(strings.ToLower(records[0][0]), "timestamp") ||
+		strings.Contains(strings.ToLower(records[0][0]), "time")) {
+		startIdx = 1
+	}
+
+	samples := make([]float64, 0, len(records)-startIdx)
+	timestamps := make([]float64, 0, len(records)-startIdx)
+
+	for i := startIdx; i < len(records); i++ {
+		if len(records[i]) < 2 {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": fmt.Sprintf("invalid CSV format on line %d. Expected 2 columns, got %d", i+1, len(records[i])),
+			})
+		}
+
+		timestamp, err := strconv.ParseFloat(strings.TrimSpace(records[i][0]), 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": fmt.Sprintf("invalid timestamp on line %d: \"%s\"", i+1, records[i][0]),
+			})
+		}
+
+		value, err := strconv.ParseFloat(strings.TrimSpace(records[i][1]), 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": fmt.Sprintf("invalid value on line %d: \"%s\"", i+1, records[i][1]),
+			})
+		}
+
+		timestamps = append(timestamps, timestamp)
+		samples = append(samples, value)
+	}
+
+	if len(samples) == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "no valid samples found in CSV"})
+	}
+
+	response := map[string]interface{}{
+		"type":       "timestamp-value",
+		"samples":    samples,
+		"timestamps": timestamps,
+		"count":      len(samples),
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// parseSimpleCSV handles simple CSV data (values only)
+func parseSimpleCSV(records [][]string, c echo.Context) error {
+	samples := make([]float64, 0, len(records))
+
+	for i, row := range records {
+		if len(row) == 0 {
+			continue // Skip empty rows
+		}
+
+		// Take first column as sample value
+		value, err := strconv.ParseFloat(strings.TrimSpace(row[0]), 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": fmt.Sprintf("invalid value on line %d: \"%s\"", i+1, row[0]),
+			})
+		}
+
+		samples = append(samples, value)
+	}
+
+	if len(samples) == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "no valid samples found in CSV"})
+	}
+
+	response := map[string]interface{}{
+		"type":    "simple",
+		"samples": samples,
+		"count":   len(samples),
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// ConvertECGData: convert raw ECG data using Python script
+func (h *Handler) ConvertECGData(c echo.Context) error {
+	// Parse request body
+	type ConvertReq struct {
+		CSVData  string  `json:"csvData"`
+		ADCBits  int     `json:"adcBits"`
+		ADCRange float64 `json:"adcRange"`
+	}
+	var req ConvertReq
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	if req.CSVData == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "csvData is required"})
+	}
+
+	// Set default values if not provided
+	if req.ADCBits == 0 {
+		req.ADCBits = 12
+	}
+	if req.ADCRange == 0 {
+		req.ADCRange = 10.0
+	}
+
+	// Create temporary files
+	inputFile := "/tmp/input_ecg.csv"
+	outputFile := "/tmp/output_ecg.csv"
+
+	// Write input CSV data to temporary file
+	if err := os.WriteFile(inputFile, []byte(req.CSVData), 0644); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create input file"})
+	}
+	defer os.Remove(inputFile)
+	defer os.Remove(outputFile)
+
+	// Run Python conversion script using venv
+	scriptPath := "python_tools/Conversion.py"
+
+	// Try to detect the correct Python path (Docker vs local)
+	venvPython := "/app/venv/bin/python3"
+	localVenvPython := "python_tools/venv/bin/python3"
+
+	// Check if local venv exists, use it if available
+	if _, err := os.Stat(localVenvPython); err == nil {
+		venvPython = localVenvPython
+	}
+
+	cmd := exec.Command(venvPython, scriptPath, inputFile, outputFile, "--adc_bits", strconv.Itoa(req.ADCBits), "--adc_range", fmt.Sprintf("%.1f", req.ADCRange))
+	cmd.Dir = "." // Run from backend directory
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"error":      "failed to run conversion script: " + err.Error(),
+			"output":     string(output),
+			"script":     scriptPath,
+			"python":     venvPython,
+			"inputFile":  inputFile,
+			"outputFile": outputFile,
+			"args":       []string{scriptPath, inputFile, outputFile, "--adc_bits", strconv.Itoa(req.ADCBits), "--adc_range", fmt.Sprintf("%.1f", req.ADCRange)},
+		})
+	}
+
+	// Read the converted CSV data
+	convertedData, err := os.ReadFile(outputFile)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to read output file"})
+	}
+
+	// Parse the converted CSV to return structured data
+	reader := csv.NewReader(strings.NewReader(string(convertedData)))
+	records, err := reader.ReadAll()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to parse converted CSV: " + err.Error()})
+	}
+
+	// Check if it's multi-lead format
+	if len(records) > 0 && len(records[0]) > 0 && strings.Contains(records[0][0], "Lead_") {
+		return parseMultiLeadCSV(records, c)
+	}
+
+	// Check if it's timestamp,value format
+	if len(records) > 0 && (strings.Contains(strings.ToLower(records[0][0]), "timestamp") ||
+		(len(records[0]) >= 2 && strings.Contains(strings.ToLower(records[0][0]), "time"))) {
+		return parseTimestampValueCSV(records, c)
+	}
+
+	// Default: treat as simple value columns
+	return parseSimpleCSV(records, c)
 }
 
 // small helper to avoid importing time in this file

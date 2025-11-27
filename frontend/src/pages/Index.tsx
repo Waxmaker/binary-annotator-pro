@@ -36,6 +36,7 @@ import {
   MessageSquare,
   BookOpen,
   FileArchive,
+  Zap,
 } from "lucide-react";
 import { useEffect } from "react";
 import { fetchBinaryList, fetchBinaryFile } from "@/lib/api";
@@ -508,6 +509,15 @@ const Index = () => {
           >
             <LineChart className="h-4 w-4" />
             Sample Viewer
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/huffman-analysis")}
+            className="gap-2"
+          >
+            <Zap className="h-4 w-4" />
+            Huffman
           </Button>
           <Button
             variant="outline"

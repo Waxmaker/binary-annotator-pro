@@ -17,6 +17,11 @@ interface EcgViewerCanvasProps {
   multiLeadData?: MultiLeadData | null;
   selectedLead?: number;
   onLeadChange?: (leadIndex: number) => void;
+  overlayMode?: boolean;
+  showRaw?: boolean;
+  showConverted?: boolean;
+  rawData?: any;
+  convertedData?: any;
 }
 
 export function EcgViewerCanvas({
@@ -30,6 +35,11 @@ export function EcgViewerCanvas({
   multiLeadData,
   selectedLead = 0,
   onLeadChange,
+  overlayMode = false,
+  showRaw = true,
+  showConverted = true,
+  rawData,
+  convertedData,
 }: EcgViewerCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 400 });
@@ -55,6 +65,11 @@ export function EcgViewerCanvas({
     selectedIndex,
     zoom,
     offset,
+    overlayMode,
+    showRaw,
+    showConverted,
+    rawData,
+    convertedData,
   });
 
   const handleZoomIn = () => {
@@ -91,6 +106,18 @@ export function EcgViewerCanvas({
       <div className="p-4 border-b border-panel-border bg-panel-header flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-semibold text-foreground">ECG Waveform</h2>
+          {overlayMode && (
+            <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                <span>Raw</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span>Converted</span>
+              </div>
+            </div>
+          )}
           {multiLeadData && multiLeadData.leadNames.length > 1 && (
             <Select value={selectedLead.toString()} onValueChange={(value) => onLeadChange?.(parseInt(value))}>
               <SelectTrigger className="w-32 h-7 text-xs">
