@@ -13,6 +13,9 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o binary-annotator-
 # ---- Runtime Alpine: Python + Go ----
 FROM python:3.12-alpine
 
+# Install build dependencies for Python packages
+RUN apk add --no-cache gcc musl-dev linux-headers
+
 WORKDIR /app
 COPY ./python_tools /app/python_tools
 
@@ -21,6 +24,10 @@ COPY --from=builder /app/binary-annotator-pro .
 
 # Create data directory
 RUN mkdir -p /app/data
+
+RUN python3 -m venv /app/venv
+RUN /app/venv/bin/pip install --upgrade pip
+RUN /app/venv/bin/pip install -r /app/python_tools/requirements.txt
 
 # ENV variables
 ENV BINARY_ANNOTATOR_API_URL=http://backend:3000

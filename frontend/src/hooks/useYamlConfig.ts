@@ -60,15 +60,17 @@ export function useYamlConfig(buffer: ArrayBuffer | null, fileName: string | nul
             search.regex,
           );
 
-          response.matches.forEach((match) => {
-            allHighlights.push({
-              start: match.offset,
-              end: match.offset + match.length,
-              color: search.color,
-              name: `${name} (${search.value})`,
-              type: 'search',
+          if (response.matches && Array.isArray(response.matches)) {
+            response.matches.forEach((match) => {
+              allHighlights.push({
+                start: match.offset,
+                end: match.offset + match.length,
+                color: search.color,
+                name: `${name} (${search.value})`,
+                type: 'search',
+              });
             });
-          });
+          }
         } catch (error) {
           console.warn(`Failed to search for ${name}:`, error);
         }

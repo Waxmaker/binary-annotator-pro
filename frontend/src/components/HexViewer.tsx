@@ -6,6 +6,8 @@ import { FileText, Search } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { chunkManager } from "@/utils/chunkManager";
+import { HexViewerContextMenu } from "./HexViewerContextMenu";
+import { AddTagDialog } from "./AddTagDialog";
 
 interface HexViewerProps {
   buffer: ArrayBuffer | null;
@@ -17,6 +19,7 @@ interface HexViewerProps {
   onByteMouseEnter: (offset: number) => void;
   scrollToOffset?: number | null;
   onClearSelection?: () => void;
+  onAddTag?: (tagName: string, offset: number, size: number, color: string) => void;
 }
 
 const BYTES_PER_LINE = 16;
@@ -33,6 +36,7 @@ export function HexViewer({
   onByteMouseEnter,
   scrollToOffset,
   onClearSelection,
+  onAddTag,
 }: HexViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -41,6 +45,8 @@ export function HexViewer({
   const [chunkData, setChunkData] = useState<Uint8Array | null>(null);
   const [chunkStart, setChunkStart] = useState(0);
   const [isLoadingChunk, setIsLoadingChunk] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [showAddTagDialog, setShowAddTagDialog] = useState(false);
 
   // Use chunk-based loading if fileName is provided, otherwise use buffer
   const useChunks = !buffer && fileName && propsFileSize;
@@ -285,6 +291,24 @@ export function HexViewer({
     );
   };
 
+  // Handle right-click context menu (no useCallback to avoid re-render issues)
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowSuggestions(false);
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleAddToConfig = () => {
+    setShowAddTagDialog(true);
+  };
+
+  const handleConfirmAddTag = (tagName: string, color: string) => {
+    if (selection && onAddTag) {
+      const size = selection.end - selection.start + 1;
+      onAddTag(tagName, selection.start, size, color);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-hex-background relative">
       {/* Chunk Loading Indicator (during scroll) */}
@@ -378,6 +402,7 @@ export function HexViewer({
         className="flex-1 overflow-auto pt-2"
         onScroll={handleScroll}
         onClick={() => setShowSuggestions(false)}
+        onContextMenu={handleContextMenu}
       >
         <div style={{ height: totalHeight, position: "relative" }}>
           <div
@@ -410,6 +435,29 @@ export function HexViewer({
           </div>
         </div>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <HexViewerContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onAddToConfig={handleAddToConfig}
+          hasSelection={!!selection}
+        />
+      )}
+
+      {/* Add Tag Dialog */}
+      {selection && (
+        <AddTagDialog
+          open={showAddTagDialog}
+          onClose={() => setShowAddTagDialog(false)}
+          onConfirm={handleConfirmAddTag}
+          selectionStart={selection.start}
+          selectionEnd={selection.end}
+          selectionSize={selection.end - selection.start + 1}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getUserID } from "./useUserID";
 
-export type AIProvider = "ollama" | "openai" | "claude";
+export type AIProvider = "ollama" | "openai" | "claude" | "gemini";
 
 export interface AISettings {
   provider: AIProvider;
@@ -11,6 +11,8 @@ export interface AISettings {
   openaiModel: string;
   claudeKey: string;
   claudeModel: string;
+  geminiKey: string;
+  geminiModel: string;
   thinking: boolean;
 }
 
@@ -24,6 +26,8 @@ const DEFAULT_SETTINGS: AISettings = {
   openaiModel: "gpt-4",
   claudeKey: "",
   claudeModel: "claude-3-5-sonnet-20241022",
+  geminiKey: "",
+  geminiModel: "gemini-2.0-flash",
   thinking: false,
 };
 
@@ -54,6 +58,8 @@ export function useAISettings() {
         openaiModel: data.openai_model || DEFAULT_SETTINGS.openaiModel,
         claudeKey: "", // API keys stay on backend
         claudeModel: data.claude_model || DEFAULT_SETTINGS.claudeModel,
+        geminiKey: "", // API keys stay on backend
+        geminiModel: data.gemini_model || DEFAULT_SETTINGS.geminiModel,
         thinking: data.thinking || false,
       };
 
@@ -90,6 +96,8 @@ export function useAISettings() {
             openai_model: newSettings.openaiModel,
             claude_key: newSettings.claudeKey || undefined,
             claude_model: newSettings.claudeModel,
+            gemini_key: newSettings.geminiKey || undefined,
+            gemini_model: newSettings.geminiModel,
             thinking: newSettings.thinking,
           }),
         });

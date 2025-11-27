@@ -67,6 +67,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         return !!localSettings.openaiKey;
       case "claude":
         return !!localSettings.claudeKey;
+      case "gemini":
+        return !!localSettings.geminiKey;
       default:
         return false;
     }
@@ -121,12 +123,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     )}
                   </div>
                 </SelectItem>
+                <SelectItem value="gemini">
+                  <div className="flex items-center gap-2">
+                    Gemini (Cloud)
+                    {isProviderConfigured("gemini") && (
+                      <Check className="h-3 w-3 text-green-500" />
+                    )}
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <Tabs value={localSettings.provider} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger
                 value="ollama"
                 onClick={() => handleProviderChange("ollama")}
@@ -144,6 +154,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 onClick={() => handleProviderChange("claude")}
               >
                 Claude
+              </TabsTrigger>
+              <TabsTrigger
+                value="gemini"
+                onClick={() => handleProviderChange("gemini")}
+              >
+                Gemini
               </TabsTrigger>
             </TabsList>
 
@@ -356,6 +372,72 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5" />
                 <div className="text-xs text-muted-foreground">
                   Claude API usage is billed. Your key is stored locally and
+                  never sent to our servers.
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Gemini Configuration */}
+            <TabsContent value="gemini" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="geminiKey">API Key</Label>
+                <Input
+                  id="geminiKey"
+                  type="password"
+                  placeholder="AIza..."
+                  value={localSettings.geminiKey}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      geminiKey: e.target.value,
+                    })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Get your API key from{" "}
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    Google AI Studio
+                  </a>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="geminiModel">Model</Label>
+                <Select
+                  value={localSettings.geminiModel}
+                  onValueChange={(val) =>
+                    setLocalSettings({ ...localSettings, geminiModel: val })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gemini-3-pro">
+                      Gemini 3 Pro (Most intelligent)
+                    </SelectItem>
+                    <SelectItem value="gemini-2.5-pro">
+                      Gemini 2.5 Pro (Advanced reasoning)
+                    </SelectItem>
+                    <SelectItem value="gemini-2.0-flash">
+                      Gemini 2.0 Flash (Fast & intelligent)
+                    </SelectItem>
+                    <SelectItem value="gemini-2.5-flash-lite">
+                      Gemini 2.5 Flash-Lite (Ultra fast)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5" />
+                <div className="text-xs text-muted-foreground">
+                  Gemini API usage is billed. Your key is stored locally and
                   never sent to our servers.
                 </div>
               </div>

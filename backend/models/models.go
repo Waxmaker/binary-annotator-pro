@@ -88,7 +88,7 @@ type AISettings struct {
 	UserID string `gorm:"uniqueIndex;not null" json:"user_id"` // UUID from frontend localStorage
 
 	// Active provider
-	Provider string `json:"provider"` // "ollama", "openai", "claude"
+	Provider string `json:"provider"` // "ollama", "openai", "claude", "gemini"
 
 	// Ollama settings
 	OllamaURL   string `json:"ollama_url"`
@@ -102,6 +102,10 @@ type AISettings struct {
 	ClaudeKey   string `json:"claude_key,omitempty"`
 	ClaudeModel string `json:"claude_model"`
 	Thinking    bool   `gorm:"default:false" json:"thinking"`
+
+	// Gemini settings (encrypted in production)
+	GeminiKey   string `json:"gemini_key,omitempty"`
+	GeminiModel string `json:"gemini_model"`
 }
 
 // ChatSession represents a chat conversation

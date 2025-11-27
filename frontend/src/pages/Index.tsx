@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { createSampledBuffer, SamplingInfo } from "@/utils/fileSampling";
+import { addTagToYaml } from "@/utils/yamlTagAdder";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -212,6 +213,10 @@ const Index = () => {
     updateYaml,
   } = useYamlConfig(currentBuffer, currentFile);
 
+  // Store yamlText in a ref to avoid dependency issues
+  const yamlTextRef = useRef(yamlText);
+  yamlTextRef.current = yamlText;
+
   // Combine YAML highlights with search highlights
   const highlights = [...yamlHighlights, ...searchHighlights];
 
@@ -410,6 +415,19 @@ const Index = () => {
   const handleConfigSaved = useCallback(() => {
     setRefreshConfigList((prev) => prev + 1);
   }, []);
+
+  const handleAddTag = useCallback(
+    (tagName: string, offset: number, size: number, color: string) => {
+      try {
+        const newYaml = addTagToYaml(yamlTextRef.current, tagName, offset, size, color);
+        updateYaml(newYaml);
+        toast.success(`Tag "${tagName}" added to configuration`);
+      } catch (error: any) {
+        toast.error(`Failed to add tag: ${error.message}`);
+      }
+    },
+    [updateYaml]
+  );
 
   const loadFilesFromBackend = useCallback(async () => {
     setIsLoadingFiles(true);
@@ -822,6 +840,7 @@ const Index = () => {
                   onByteMouseEnter={handleByteMouseEnter}
                   scrollToOffset={scrollToOffset}
                   onClearSelection={clearSelection}
+                  onAddTag={handleAddTag}
                 />
               </div>
             </div>

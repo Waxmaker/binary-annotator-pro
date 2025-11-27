@@ -254,10 +254,34 @@ func (ch *ChatHandler) handleChatMessage(ws *websocket.Conn, msg ChatWSMessage) 
 		return
 	}
 
-	if settings.Provider != "ollama" {
+	// Validate provider is configured
+	switch settings.Provider {
+	case "ollama":
+		if settings.OllamaURL == "" {
+			ws.WriteJSON(&ChatWSResponse{
+				Type:  "error",
+				Error: "Ollama URL not configured",
+			})
+			return
+		}
+	case "gemini":
+		if settings.GeminiKey == "" {
+			ws.WriteJSON(&ChatWSResponse{
+				Type:  "error",
+				Error: "Gemini API key not configured",
+			})
+			return
+		}
+	case "openai", "claude":
 		ws.WriteJSON(&ChatWSResponse{
 			Type:  "error",
-			Error: "Only Ollama is supported for chat currently",
+			Error: fmt.Sprintf("%s provider not yet supported for chat", settings.Provider),
+		})
+		return
+	default:
+		ws.WriteJSON(&ChatWSResponse{
+			Type:  "error",
+			Error: "Unknown AI provider",
 		})
 		return
 	}
@@ -589,57 +613,85 @@ Please analyze this hex selection in the context of the user's question.`,
 		Content: userMessage,
 	})
 
-	// Stream response from Ollama with tool calling support
-	chatService := services.NewChatService(settings.OllamaURL)
-
-	// Prepare think parameter based on settings
-	var thinkParam interface{}
-	if settings.Thinking {
-		thinkParam = true // Default to boolean true for most models
-	}
-
 	// Tool calling loop - may need multiple iterations
 	maxIterations := 5
 	for iteration := 0; iteration < maxIterations; iteration++ {
 		var fullResponse string
 		var fullThinking string
 		var toolCalls []services.ToolCall
+		var err error
 
-		log.Printf("Starting Ollama streaming with %d messages (thinking: %v)...", len(chatMessages), thinkParam)
-		err := chatService.StreamChatWithTools(services.ChatRequest{
-			Model:    settings.OllamaModel,
-			Messages: chatMessages,
-			Tools:    ollamaTools,
-			Think:    thinkParam,
-		}, func(resp services.StreamResponse) error {
-			// Handle thinking chunks
-			if resp.Thinking != "" {
-				fullThinking += resp.Thinking
-				// Send thinking chunk to client
-				ws.WriteJSON(&ChatWSResponse{
-					Type:     "thinking",
-					Thinking: resp.Thinking,
-				})
+		// Stream response based on provider
+		if settings.Provider == "ollama" {
+			// Ollama with tool calling support
+			chatService := services.NewChatService(settings.OllamaURL)
+
+			// Prepare think parameter based on settings
+			var thinkParam interface{}
+			if settings.Thinking {
+				thinkParam = true // Default to boolean true for most models
 			}
 
-			// Handle content chunks
-			if resp.Content != "" {
-				fullResponse += resp.Content
-				// Send chunk to client
-				ws.WriteJSON(&ChatWSResponse{
-					Type:  "chunk",
-					Chunk: resp.Content,
-				})
-			}
+			log.Printf("Starting Ollama streaming with %d messages (thinking: %v)...", len(chatMessages), thinkParam)
+			err = chatService.StreamChatWithTools(services.ChatRequest{
+				Model:    settings.OllamaModel,
+				Messages: chatMessages,
+				Tools:    ollamaTools,
+				Think:    thinkParam,
+			}, func(resp services.StreamResponse) error {
+				// Handle thinking chunks
+				if resp.Thinking != "" {
+					fullThinking += resp.Thinking
+					// Send thinking chunk to client
+					ws.WriteJSON(&ChatWSResponse{
+						Type:     "thinking",
+						Thinking: resp.Thinking,
+					})
+				}
 
-			// Collect tool calls
-			if len(resp.ToolCalls) > 0 {
-				toolCalls = append(toolCalls, resp.ToolCalls...)
-			}
+				// Handle content chunks
+				if resp.Content != "" {
+					fullResponse += resp.Content
+					// Send chunk to client
+					ws.WriteJSON(&ChatWSResponse{
+						Type:  "chunk",
+						Chunk: resp.Content,
+					})
+				}
 
-			return nil
-		})
-		log.Printf("Ollama streaming completed. fullResponse length: %d, toolCalls: %d", len(fullResponse), len(toolCalls))
+				// Collect tool calls
+				if len(resp.ToolCalls) > 0 {
+					toolCalls = append(toolCalls, resp.ToolCalls...)
+				}
+
+				return nil
+			})
+		} else if settings.Provider == "gemini" {
+			// Gemini streaming
+			geminiService := services.NewGeminiService(settings.GeminiKey)
+
+			log.Printf("Starting Gemini streaming with %d messages...", len(chatMessages))
+			err = geminiService.StreamChatWithTools(settings.GeminiModel, chatMessages, func(resp services.StreamResponse) error {
+				// Handle content chunks
+				if resp.Content != "" {
+					fullResponse += resp.Content
+					// Send chunk to client
+					ws.WriteJSON(&ChatWSResponse{
+						Type:  "chunk",
+						Chunk: resp.Content,
+					})
+				}
+
+				// Collect tool calls (Gemini doesn't support tool calls in basic mode)
+				if len(resp.ToolCalls) > 0 {
+					toolCalls = append(toolCalls, resp.ToolCalls...)
+				}
+
+				return nil
+			})
+		}
+
+		log.Printf("Streaming completed. fullResponse length: %d, toolCalls: %d", len(fullResponse), len(toolCalls))
 
 		if err != nil {
 			log.Printf("Chat stream error: %v", err)

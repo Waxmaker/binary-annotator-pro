@@ -37,6 +37,7 @@ func (h *AISettingsHandler) GetAISettings(c echo.Context) error {
 				"ollama_model":  "llama2",
 				"openai_model":  "gpt-4",
 				"claude_model":  "claude-3-5-sonnet-20241022",
+				"gemini_model":  "gemini-2.0-flash",
 				"user_id":       userID,
 				"thinking":      false,
 				"is_configured": false,
@@ -54,6 +55,8 @@ func (h *AISettingsHandler) GetAISettings(c echo.Context) error {
 		isConfigured = settings.OpenAIKey != ""
 	case "claude":
 		isConfigured = settings.ClaudeKey != ""
+	case "gemini":
+		isConfigured = settings.GeminiKey != ""
 	}
 
 	// Don't send API keys to frontend (they stay on backend)
@@ -65,10 +68,12 @@ func (h *AISettingsHandler) GetAISettings(c echo.Context) error {
 		"ollama_model":   settings.OllamaModel,
 		"openai_model":   settings.OpenAIModel,
 		"claude_model":   settings.ClaudeModel,
+		"gemini_model":   settings.GeminiModel,
 		"thinking":       settings.Thinking,
 		"is_configured":  isConfigured,
 		"has_openai_key": settings.OpenAIKey != "",
 		"has_claude_key": settings.ClaudeKey != "",
+		"has_gemini_key": settings.GeminiKey != "",
 		"created_at":     settings.CreatedAt,
 		"updated_at":     settings.UpdatedAt,
 	}
@@ -113,6 +118,7 @@ func (h *AISettingsHandler) SaveAISettings(c echo.Context) error {
 	existing.OllamaModel = req.OllamaModel
 	existing.OpenAIModel = req.OpenAIModel
 	existing.ClaudeModel = req.ClaudeModel
+	existing.GeminiModel = req.GeminiModel
 	existing.Thinking = req.Thinking
 
 	// Only update API keys if provided (non-empty)
@@ -121,6 +127,9 @@ func (h *AISettingsHandler) SaveAISettings(c echo.Context) error {
 	}
 	if req.ClaudeKey != "" {
 		existing.ClaudeKey = req.ClaudeKey
+	}
+	if req.GeminiKey != "" {
+		existing.GeminiKey = req.GeminiKey
 	}
 
 	if err := h.db.GormDB.Save(&existing).Error; err != nil {
