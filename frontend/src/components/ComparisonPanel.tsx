@@ -12,11 +12,10 @@ import { Card } from "@/components/ui/card";
 import { BinaryDiffViewer } from "./BinaryDiffViewer";
 import { DeltaAnalysis } from "./DeltaAnalysis";
 import { PatternCorrelation } from "./PatternCorrelation";
-import { GitCompare, BarChart3, TrendingUp, Loader2 } from "lucide-react";
-import { fetchBinaryFile } from "@/lib/api";
-import { toast } from "sonner";
+import { GitCompare, BarChart3, TrendingUp } from "lucide-react";
 
 interface FileData {
+  id?: number;
   name: string;
   size: number;
   buffer?: ArrayBuffer; // Optional - only loaded for small files
@@ -26,106 +25,19 @@ interface ComparisonPanelProps {
   files: FileData[];
 }
 
-const CHUNK_THRESHOLD = 50 * 1024 * 1024; // 50MB
-
 export function ComparisonPanel({ files }: ComparisonPanelProps) {
   const [file1Index, setFile1Index] = useState<number>(0);
   const [file2Index, setFile2Index] = useState<number>(
     files.length > 1 ? 1 : 0,
   );
-  const [file1Buffer, setFile1Buffer] = useState<ArrayBuffer | null>(null);
-  const [file2Buffer, setFile2Buffer] = useState<ArrayBuffer | null>(null);
-  const [isLoadingFile1, setIsLoadingFile1] = useState(false);
-  const [isLoadingFile2, setIsLoadingFile2] = useState(false);
 
   const file1 = files[file1Index];
   const file2 = files[file2Index];
 
-  // Load file1 buffer
-  useEffect(() => {
-    if (!file1) {
-      setFile1Buffer(null);
-      return;
-    }
-
-    // If buffer already exists, use it
-    if (file1.buffer) {
-      setFile1Buffer(file1.buffer);
-      return;
-    }
-
-    // For large files, don't load buffer (will use chunk-based comparison)
-    if (file1.size > CHUNK_THRESHOLD) {
-      console.log(
-        `File1 ${file1.name} is large (${(file1.size / (1024 * 1024)).toFixed(1)} MB) - using chunk-based comparison`,
-      );
-      setFile1Buffer(null);
-      return;
-    }
-
-    // Load small file buffer
-    const loadBuffer = async () => {
-      setIsLoadingFile1(true);
-      try {
-        const buffer = await fetchBinaryFile(file1.name);
-        setFile1Buffer(buffer);
-        // Cache in file object
-        file1.buffer = buffer;
-      } catch (err) {
-        console.error("Failed to load file1:", err);
-        toast.error(`Failed to load ${file1.name}`);
-        setFile1Buffer(null);
-      } finally {
-        setIsLoadingFile1(false);
-      }
-    };
-
-    loadBuffer();
-  }, [file1]);
-
-  // Load file2 buffer
-  useEffect(() => {
-    if (!file2) {
-      setFile2Buffer(null);
-      return;
-    }
-
-    // If buffer already exists, use it
-    if (file2.buffer) {
-      setFile2Buffer(file2.buffer);
-      return;
-    }
-
-    // For large files, don't load buffer (will use chunk-based comparison)
-    if (file2.size > CHUNK_THRESHOLD) {
-      console.log(
-        `File2 ${file2.name} is large (${(file2.size / (1024 * 1024)).toFixed(1)} MB) - using chunk-based comparison`,
-      );
-      setFile2Buffer(null);
-      return;
-    }
-
-    // Load small file buffer
-    const loadBuffer = async () => {
-      setIsLoadingFile2(true);
-      try {
-        const buffer = await fetchBinaryFile(file2.name);
-        setFile2Buffer(buffer);
-        // Cache in file object
-        file2.buffer = buffer;
-      } catch (err) {
-        console.error("Failed to load file2:", err);
-        toast.error(`Failed to load ${file2.name}`);
-        setFile2Buffer(null);
-      } finally {
-        setIsLoadingFile2(false);
-      }
-    };
-
-    loadBuffer();
-  }, [file2]);
-
-  const isLoading = isLoadingFile1 || isLoadingFile2;
+  // NOTE: We don't load buffers here anymore!
+  // All comparisons are done via backend API to avoid loading huge files in memory.
+  // The child components (BinaryDiffViewer, DeltaAnalysis, PatternCorrelation)
+  // will handle the API calls directly using file1Id and file2Id.
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -171,8 +83,6 @@ export function ComparisonPanel({ files }: ComparisonPanelProps) {
               {file1 && (
                 <p className="text-xs text-muted-foreground">
                   {(file1.size / (1024 * 1024)).toFixed(2)} MB
-                  {file1.size > CHUNK_THRESHOLD && " • Chunk mode"}
-                  {isLoadingFile1 && " • Loading..."}
                 </p>
               )}
             </div>
@@ -202,8 +112,6 @@ export function ComparisonPanel({ files }: ComparisonPanelProps) {
               {file2 && (
                 <p className="text-xs text-muted-foreground">
                   {(file2.size / (1024 * 1024)).toFixed(2)} MB
-                  {file2.size > CHUNK_THRESHOLD && " • Chunk mode"}
-                  {isLoadingFile2 && " • Loading..."}
                 </p>
               )}
             </div>
@@ -218,19 +126,6 @@ export function ComparisonPanel({ files }: ComparisonPanelProps) {
             <p className="text-sm font-medium">No files to compare</p>
             <p className="text-xs mt-2">
               Upload at least 2 binary files to enable comparison
-            </p>
-          </div>
-        </div>
-      ) : isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
-            <p className="text-sm font-medium">
-              Loading files for comparison...
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              {isLoadingFile1 && `Loading ${file1?.name}...`}
-              {isLoadingFile2 && `Loading ${file2?.name}...`}
             </p>
           </div>
         </div>
@@ -256,23 +151,27 @@ export function ComparisonPanel({ files }: ComparisonPanelProps) {
 
           <TabsContent value="diff" className="flex-1 m-0 overflow-hidden">
             <BinaryDiffViewer
-              buffer1={file1Buffer}
-              buffer2={file2Buffer}
+              buffer1={null}
+              buffer2={null}
               fileName1={file1?.name}
               fileName2={file2?.name}
               fileSize1={file1?.size}
               fileSize2={file2?.size}
+              file1Id={file1?.id}
+              file2Id={file2?.id}
             />
           </TabsContent>
 
           <TabsContent value="delta" className="flex-1 m-0 overflow-hidden">
             <DeltaAnalysis
-              buffer1={file1Buffer}
-              buffer2={file2Buffer}
+              buffer1={null}
+              buffer2={null}
               fileName1={file1?.name}
               fileName2={file2?.name}
               fileSize1={file1?.size}
               fileSize2={file2?.size}
+              file1Id={file1?.id}
+              file2Id={file2?.id}
             />
           </TabsContent>
 
@@ -281,12 +180,14 @@ export function ComparisonPanel({ files }: ComparisonPanelProps) {
             className="flex-1 m-0 overflow-hidden"
           >
             <PatternCorrelation
-              buffer1={file1Buffer}
-              buffer2={file2Buffer}
+              buffer1={null}
+              buffer2={null}
               fileName1={file1?.name}
               fileName2={file2?.name}
               fileSize1={file1?.size}
               fileSize2={file2?.size}
+              file1Id={file1?.id}
+              file2Id={file2?.id}
             />
           </TabsContent>
         </Tabs>

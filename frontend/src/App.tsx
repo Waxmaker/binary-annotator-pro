@@ -9,7 +9,6 @@ import EcgViewer from "./pages/EcgViewer";
 import Chat from "./pages/Chat";
 import Login from "./pages/Login";
 import Documentation from "./pages/Documentation";
-import HuffmanAnalysis from "./pages/HuffmanAnalysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,7 +26,6 @@ const App = () => (
             <Route path="/ecg-viewer" element={<EcgViewer />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/documentation" element={<Documentation />} />
-            <Route path="/huffman-analysis" element={<HuffmanAnalysis />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

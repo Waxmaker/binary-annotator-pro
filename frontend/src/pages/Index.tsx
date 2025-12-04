@@ -115,7 +115,7 @@ const Index = () => {
     if (!file) return;
 
     // Threshold for chunk-based loading: 50MB
-    const CHUNK_THRESHOLD = 50 * 1024 * 1024;
+    const CHUNK_THRESHOLD = 10 * 1024 * 1024; // 10MB - use chunk loading for files larger than this
 
     // If buffer already loaded, use it
     if (file.buffer) {
@@ -144,25 +144,28 @@ const Index = () => {
         let info: SamplingInfo;
 
         if (isLargeFile) {
-          // For large files, create intelligent sample
+          // For large files, DON'T load buffer - use chunk-based loading instead
           console.log(
-            `File ${file.name} is ${(file.size / (1024 * 1024)).toFixed(1)} MB - using sampled analysis`,
+            `File ${file.name} is ${(file.size / (1024 * 1024)).toFixed(1)} MB - using chunk-based loading (no buffer)`,
           );
 
-          // Fetch the file blob first
-          const response = await fetch(
-            `${API_BASE_URL}/get/binary/${encodeURIComponent(file.name)}`,
-          );
-          if (!response.ok)
-            throw new Error(`Failed to fetch file: ${response.statusText}`);
-          const blob = await response.blob();
+          // Don't load any buffer - HexViewer will use chunk loading via fileId
+          buffer = new ArrayBuffer(0); // Empty buffer
+          info = {
+            isSampled: false,
+            originalSize: file.size,
+            sampleSize: 0,
+            strategy: "chunk-based",
+          };
 
-          // Create sampled buffer
-          const sampledData = await createSampledBuffer(
-            new File([blob], file.name),
-          );
-          buffer = sampledData.buffer;
-          info = sampledData.info;
+          toast.success(`Using efficient chunk-based loading for large file`, { id: loadingToast });
+
+          // Store in file object for caching
+          file.buffer = buffer;
+          setCurrentBuffer(null); // Explicitly set to null - HexViewer will use fileId instead
+          setSamplingInfo(info);
+          setIsLoadingBuffer(false);
+          return; // Exit early
         } else {
           // For small files, load normally
           buffer = await fetchBinaryFile(file.name);
@@ -531,15 +534,6 @@ const Index = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate("/huffman-analysis")}
-            className="gap-2"
-          >
-            <Zap className="h-4 w-4" />
-            Huffman
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={() => navigate("/documentation")}
             className="gap-2"
           >
@@ -832,6 +826,11 @@ const Index = () => {
                   fileSize={
                     currentFile
                       ? files.find((f) => f.name === currentFile)?.size
+                      : undefined
+                  }
+                  fileId={
+                    currentFile
+                      ? files.find((f) => f.name === currentFile)?.id
                       : undefined
                   }
                   highlights={highlights}

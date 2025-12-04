@@ -137,13 +137,34 @@ export function formatHexBytesSpaced(bytes: number[]): string {
 export function parseHexPattern(pattern: string): number[] {
   const cleaned = pattern.replace(/\s+/g, '');
   const bytes: number[] = [];
-  
+
   for (let i = 0; i < cleaned.length; i += 2) {
     const byteStr = cleaned.substr(i, 2);
     if (byteStr.length === 2) {
       bytes.push(parseInt(byteStr, 16));
     }
   }
-  
+
   return bytes;
+}
+
+/**
+ * Apply XOR operation with a hex key
+ * @param bytes - Input bytes to XOR
+ * @param hexKey - Hex key string (e.g., "FF", "A5B3")
+ * @returns XORed bytes or null if invalid key
+ */
+export function applyXor(bytes: number[], hexKey: string): number[] | null {
+  try {
+    const keyBytes = parseHexPattern(hexKey);
+    if (keyBytes.length === 0) return null;
+
+    // Apply XOR with key bytes cycling
+    return bytes.map((byte, index) => {
+      const keyByte = keyBytes[index % keyBytes.length];
+      return byte ^ keyByte;
+    });
+  } catch (error) {
+    return null;
+  }
 }

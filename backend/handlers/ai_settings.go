@@ -37,7 +37,7 @@ func (h *AISettingsHandler) GetAISettings(c echo.Context) error {
 				"ollama_model":  "llama2",
 				"openai_model":  "gpt-4",
 				"claude_model":  "claude-3-5-sonnet-20241022",
-				"gemini_model":  "gemini-2.0-flash",
+				"gemini_model":  "gemini-3-pro-preview",
 				"user_id":       userID,
 				"thinking":      false,
 				"is_configured": false,

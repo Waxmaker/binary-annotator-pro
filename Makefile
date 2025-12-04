@@ -105,6 +105,8 @@ docker-logs-frontend: ## View frontend logs only
 docker-ps: ## Show running containers
 	@docker-compose ps
 
+docker-re: docker-down docker-build docker-up ## Restart Docker
+
 docker-health: ## Check health of all services
 	@echo "$(BLUE)Checking service health...$(NC)"
 	@docker-compose ps

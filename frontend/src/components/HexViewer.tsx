@@ -8,11 +8,16 @@ import { Button } from "./ui/button";
 import { chunkManager } from "@/utils/chunkManager";
 import { HexViewerContextMenu } from "./HexViewerContextMenu";
 import { AddTagDialog } from "./AddTagDialog";
+import { ChecksumDialog } from "./ChecksumDialog";
+import { toast } from "sonner";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface HexViewerProps {
   buffer: ArrayBuffer | null;
   fileName?: string; // For chunk-based loading
   fileSize?: number; // For chunk-based loading
+  fileId?: number; // For checksum calculation
   highlights: HighlightRange[];
   selection: { start: number; end: number; bytes: number[] } | null;
   onByteClick: (offset: number) => void;
@@ -30,6 +35,7 @@ export function HexViewer({
   buffer,
   fileName,
   fileSize: propsFileSize,
+  fileId,
   highlights,
   selection,
   onByteClick,
@@ -47,6 +53,9 @@ export function HexViewer({
   const [isLoadingChunk, setIsLoadingChunk] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showAddTagDialog, setShowAddTagDialog] = useState(false);
+  const [showChecksumDialog, setShowChecksumDialog] = useState(false);
+  const [checksumData, setChecksumData] = useState<any>(null);
+  const [isLoadingChecksum, setIsLoadingChecksum] = useState(false);
 
   // Use chunk-based loading if fileName is provided, otherwise use buffer
   const useChunks = !buffer && fileName && propsFileSize;
@@ -198,12 +207,13 @@ export function HexViewer({
       setIsLoadingChunk(true);
 
       try {
-        // Initialize file in chunk manager
-        chunkManager.initFile(fileName, fileSize);
+        // Initialize file in chunk manager with fileId for efficient chunk loading
+        const fileKey = fileId ? `file-${fileId}` : fileName;
+        chunkManager.initFile(fileKey, fileSize, fileId);
 
         // Load chunk
         const chunk = await chunkManager.getBytes(
-          fileName,
+          fileKey,
           chunkStartByte,
           CHUNK_SIZE,
         );
@@ -213,7 +223,7 @@ export function HexViewer({
 
         // Preload adjacent chunks
         chunkManager
-          .preloadAround(fileName, firstVisibleByte)
+          .preloadAround(fileKey, firstVisibleByte)
           .catch(console.error);
       } catch (err) {
         console.error("Failed to load chunk:", err);
@@ -306,6 +316,44 @@ export function HexViewer({
     if (selection && onAddTag) {
       const size = selection.end - selection.start + 1;
       onAddTag(tagName, selection.start, size, color);
+    }
+  };
+
+  const handleCalculateChecksum = async () => {
+    if (!selection || !fileId) {
+      toast.error("Cannot calculate checksum: No file or selection");
+      return;
+    }
+
+    setIsLoadingChecksum(true);
+    setShowChecksumDialog(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/checksum`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileId: fileId,
+          offset: selection.start,
+          length: selection.end - selection.start + 1,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to calculate checksums");
+      }
+
+      const data = await response.json();
+      setChecksumData(data);
+      toast.success("Checksums calculated successfully");
+    } catch (error) {
+      console.error("Error calculating checksums:", error);
+      toast.error("Failed to calculate checksums");
+      setShowChecksumDialog(false);
+    } finally {
+      setIsLoadingChecksum(false);
     }
   };
 
@@ -443,6 +491,7 @@ export function HexViewer({
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
           onAddToConfig={handleAddToConfig}
+          onCalculateChecksum={handleCalculateChecksum}
           hasSelection={!!selection}
         />
       )}
@@ -458,6 +507,14 @@ export function HexViewer({
           selectionSize={selection.end - selection.start + 1}
         />
       )}
+
+      {/* Checksum Dialog */}
+      <ChecksumDialog
+        open={showChecksumDialog}
+        onClose={() => setShowChecksumDialog(false)}
+        checksums={checksumData}
+        loading={isLoadingChecksum}
+      />
     </div>
   );
 }

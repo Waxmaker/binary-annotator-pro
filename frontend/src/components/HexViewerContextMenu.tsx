@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Calculator } from "lucide-react";
 
 interface HexViewerContextMenuProps {
   x: number;
   y: number;
   onClose: () => void;
   onAddToConfig: () => void;
+  onCalculateChecksum?: () => void;
   hasSelection: boolean;
 }
 
@@ -14,6 +15,7 @@ export function HexViewerContextMenu({
   y,
   onClose,
   onAddToConfig,
+  onCalculateChecksum,
   hasSelection,
 }: HexViewerContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -65,6 +67,24 @@ export function HexViewerContextMenu({
       >
         <Plus className="h-4 w-4" />
         <span>Add to config</span>
+      </button>
+
+      <button
+        className={`w-full px-4 py-2 text-sm text-left flex items-center gap-2 transition-colors ${
+          hasSelection
+            ? "hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+            : "opacity-50 cursor-not-allowed"
+        }`}
+        onClick={() => {
+          if (hasSelection && onCalculateChecksum) {
+            onCalculateChecksum();
+            onClose();
+          }
+        }}
+        disabled={!hasSelection}
+      >
+        <Calculator className="h-4 w-4" />
+        <span>Calculate checksums</span>
       </button>
 
       {!hasSelection && (

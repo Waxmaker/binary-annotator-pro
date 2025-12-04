@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Maximize2 } from "lucide-react";
+import { Maximize2, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,12 +22,18 @@ import {
   findChangedRegions,
   formatByte,
 } from "@/utils/binaryDiff";
+import { analyzeDelta } from "@/services/comparisonApi";
+import { toast } from "sonner";
 
 interface DeltaAnalysisProps {
   buffer1: ArrayBuffer | null;
   buffer2: ArrayBuffer | null;
   fileName1?: string;
   fileName2?: string;
+  fileSize1?: number;
+  fileSize2?: number;
+  file1Id?: number;
+  file2Id?: number;
 }
 
 export function DeltaAnalysis({
@@ -35,11 +41,52 @@ export function DeltaAnalysis({
   buffer2,
   fileName1 = "File 1",
   fileName2 = "File 2",
+  fileSize1,
+  fileSize2,
+  file1Id,
+  file2Id,
 }: DeltaAnalysisProps) {
   const [zoomOpen, setZoomOpen] = useState(false);
+  const [apiData, setApiData] = useState<any>(null);
+  const [isLoadingApi, setIsLoadingApi] = useState(false);
+  const useApi = !buffer1 || !buffer2;
 
-  const { stats, changes, regions } = useMemo(() => {
-    if (!buffer1 || !buffer2) {
+  // Load from API for large files
+  useEffect(() => {
+    if (!useApi || !file1Id || !file2Id) {
+      setApiData(null);
+      return;
+    }
+
+    const loadDelta = async () => {
+      setIsLoadingApi(true);
+      try {
+        const response = await analyzeDelta(file1Id, file2Id, 4, 1000);
+        // Convert API response to local format
+        const stats = {
+          totalBytes: response.stats.total_bytes,
+          equalBytes: response.stats.unchanged_bytes,
+          modifiedBytes: response.stats.changed_bytes,
+          similarity: 100 - response.stats.percent_changed,
+          file1Size: response.stats.file1_size,
+          file2Size: response.stats.file2_size,
+        };
+        // Changes and regions come directly from API (no base64 encoding for these)
+        setApiData({ stats, changes: response.changes, regions: response.regions });
+      } catch (err: any) {
+        console.error("Failed to analyze delta:", err);
+        toast.error(`Failed to analyze delta: ${err.message}`);
+        setApiData({ stats: null, changes: [], regions: [] });
+      } finally {
+        setIsLoadingApi(false);
+      }
+    };
+
+    loadDelta();
+  }, [useApi, file1Id, file2Id]);
+
+  const localData = useMemo(() => {
+    if (useApi || !buffer1 || !buffer2) {
       return { stats: null, changes: [], regions: [] };
     }
     return {
@@ -47,12 +94,33 @@ export function DeltaAnalysis({
       changes: findByteChanges(buffer1, buffer2),
       regions: findChangedRegions(buffer1, buffer2, 4),
     };
-  }, [buffer1, buffer2]);
+  }, [buffer1, buffer2, useApi]);
 
-  if (!buffer1 || !buffer2) {
+  const { stats, changes, regions } = useApi ? (apiData || { stats: null, changes: [], regions: [] }) : localData;
+
+  if (isLoadingApi) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
+          <p className="text-sm font-medium">Analyzing delta...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!useApi && (!buffer1 || !buffer2)) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
         Select two files to compare
+      </div>
+    );
+  }
+
+  if (useApi && (!file1Id || !file2Id)) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        File IDs required for large file comparison
       </div>
     );
   }

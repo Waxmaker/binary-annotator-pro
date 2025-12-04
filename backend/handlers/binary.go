@@ -83,6 +83,65 @@ func (h *Handler) RenameBinaryFile(c echo.Context) error {
 	})
 }
 
+// GetBinaryChunk returns a chunk of binary data from a file
+// Used by HexViewer for efficient scroll-based loading
+func (h *Handler) GetBinaryChunk(c echo.Context) error {
+	fileID := c.Param("id")
+	if fileID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file ID required"})
+	}
+
+	// Parse query params
+	offset := 0
+	length := 16 * 1000 // Default 16KB chunk
+
+	if o := c.QueryParam("offset"); o != "" {
+		fmt.Sscanf(o, "%d", &offset)
+	}
+	if l := c.QueryParam("length"); l != "" {
+		fmt.Sscanf(l, "%d", &length)
+	}
+
+	// Validate
+	if offset < 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "offset must be non-negative"})
+	}
+	if length <= 0 || length > 10*1024*1024 { // Max 10MB per chunk
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "length must be between 1 and 10MB"})
+	}
+
+	// Load file from DB (only metadata first)
+	var file models.File
+	if err := h.db.GormDB.First(&file, fileID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "file not found"})
+	}
+
+	// Validate offset against file size
+	if offset >= len(file.Data) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "offset exceeds file size"})
+	}
+
+	// Calculate actual end offset
+	endOffset := offset + length
+	if endOffset > len(file.Data) {
+		endOffset = len(file.Data)
+	}
+
+	// Extract chunk
+	chunk := file.Data[offset:endOffset]
+
+	// Return chunk data
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"file_id":    file.ID,
+		"file_name":  file.Name,
+		"file_size":  len(file.Data),
+		"offset":     offset,
+		"length":     len(chunk),
+		"data":       chunk, // Will be base64 encoded by Go JSON
+		"has_more":   endOffset < len(file.Data),
+	})
+}
+
 // Trigram represents a 3-byte sequence with position
 type Trigram struct {
 	X        uint8   `json:"x"`

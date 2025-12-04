@@ -1,8 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { formatAddress } from "@/utils/binaryUtils";
-import { convertBytesECG, formatHexBytesSpaced } from "@/utils/conversionsECG";
+import { convertBytesECG, formatHexBytesSpaced, applyXor } from "@/utils/conversionsECG";
 import {
   generateKaitaiSnippet,
   suggestFieldType,
@@ -10,7 +11,7 @@ import {
 } from "@/utils/kaitaiHelper";
 import { Info, Download, Copy, Activity, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAISettings } from "@/hooks/useAISettings";
 import { predictFieldType } from "@/services/aiService";
 
@@ -26,6 +27,17 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
   const { settings, isConfigured } = useAISettings();
   const [aiPrediction, setAiPrediction] = useState<string | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [xorKey, setXorKey] = useState<string>("");
+  const [xorResult, setXorResult] = useState<number[] | null>(null);
+
+  // Reset XOR state when selection changes
+  // Create a unique key from the bytes to detect actual content changes
+  const selectionKey = selection ? `${selection.start}-${selection.end}-${selection.bytes.slice(0, 4).join(',')}` : null;
+
+  useEffect(() => {
+    setXorKey("");
+    setXorResult(null);
+  }, [selectionKey]);
 
   const handleCopyKaitai = () => {
     if (!selection) return;
@@ -71,6 +83,27 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
     } finally {
       setIsLoadingAI(false);
     }
+  };
+
+  const handleXorKeyChange = (value: string) => {
+    // Only allow hex characters
+    const cleanedValue = value.replace(/[^0-9A-Fa-f]/g, "").toUpperCase();
+    setXorKey(cleanedValue);
+
+    // Apply XOR if key is valid
+    if (selection && cleanedValue.length > 0 && cleanedValue.length % 2 === 0) {
+      const result = applyXor(selection.bytes, cleanedValue);
+      setXorResult(result);
+    } else {
+      setXorResult(null);
+    }
+  };
+
+  const handleCopyXorResult = () => {
+    if (!xorResult) return;
+    const hexString = formatHexBytesSpaced(xorResult);
+    navigator.clipboard.writeText(hexString);
+    toast.success("XOR result copied to clipboard");
   };
 
   if (!selection || selection.bytes.length === 0) {
@@ -338,6 +371,63 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
             </Card>
           </div>
         )}
+
+        {/* XOR Converter */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold text-foreground flex items-center gap-2">
+            <span className="text-primary">▸</span> XOR Converter
+          </h3>
+          <Card className="p-3 bg-card space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">
+                XOR Key (Hex):
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="FF or A5B3C1..."
+                  value={xorKey}
+                  onChange={(e) => handleXorKeyChange(e.target.value)}
+                  className="font-mono text-xs h-8"
+                />
+                {xorResult && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={handleCopyXorResult}
+                    title="Copy XOR result"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            {xorResult && (
+              <>
+                <Separator />
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Result (Hex):</p>
+                  <p className="text-xs font-mono text-accent break-all">
+                    {formatHexBytesSpaced(xorResult)}
+                  </p>
+                </div>
+                <Separator />
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Result (ASCII):</p>
+                  <p className="text-xs font-mono text-hex-ascii break-all">
+                    {xorResult.map(b => (b >= 32 && b <= 126 ? String.fromCharCode(b) : '.')).join('')}
+                  </p>
+                </div>
+              </>
+            )}
+            {!xorResult && xorKey.length > 0 && (
+              <p className="text-xs text-muted-foreground italic">
+                Enter a valid hex key (even number of characters)
+              </p>
+            )}
+          </Card>
+        </div>
 
         {/* TODO: Go Backend Integration */}
         <Card className="p-3 bg-muted/30 border-dashed">

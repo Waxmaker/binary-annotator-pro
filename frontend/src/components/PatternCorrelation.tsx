@@ -3,7 +3,7 @@ import { calculatePatternCorrelation } from "@/utils/binaryDiff";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Maximize2 } from "lucide-react";
+import { Maximize2, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,12 +19,18 @@ import {
 } from "@/components/ui/tooltip";
 import { useTheme } from "@/hooks/useTheme";
 import { formatAddress } from "@/utils/binaryUtils";
+import { calculatePatternCorrelation as apiCalculatePatternCorrelation } from "@/services/comparisonApi";
+import { toast } from "sonner";
 
 interface PatternCorrelationProps {
   buffer1: ArrayBuffer | null;
   buffer2: ArrayBuffer | null;
   fileName1?: string;
   fileName2?: string;
+  fileSize1?: number;
+  fileSize2?: number;
+  file1Id?: number;
+  file2Id?: number;
 }
 
 interface CursorInfo {
@@ -38,17 +44,80 @@ export function PatternCorrelation({
   buffer2,
   fileName1 = "File 1",
   fileName2 = "File 2",
+  fileSize1,
+  fileSize2,
+  file1Id,
+  file2Id,
 }: PatternCorrelationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { theme, systemTheme } = useTheme();
   const [windowSize, setWindowSize] = useState(256);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [cursorInfo, setCursorInfo] = useState<CursorInfo | null>(null);
+  const [apiData, setApiData] = useState<Array<{ offset: number; correlation: number }> | null>(null);
+  const [isLoadingApi, setIsLoadingApi] = useState(false);
+  const useApi = !buffer1 || !buffer2;
 
-  const correlationData = useMemo(() => {
-    if (!buffer1 || !buffer2) return null;
+  // Load from API for large files
+  useEffect(() => {
+    if (!useApi || !file1Id || !file2Id) {
+      setApiData(null);
+      return;
+    }
+
+    const loadCorrelation = async () => {
+      setIsLoadingApi(true);
+      try {
+        const response = await apiCalculatePatternCorrelation(file1Id, file2Id, windowSize, 5000);
+        setApiData(response.correlations);
+        if (response.sampled) {
+          toast.info(`Showing sampled correlation data`);
+        }
+      } catch (err: any) {
+        console.error("Failed to calculate correlation:", err);
+        toast.error(`Failed to calculate correlation: ${err.message}`);
+        setApiData([]);
+      } finally {
+        setIsLoadingApi(false);
+      }
+    };
+
+    loadCorrelation();
+  }, [useApi, file1Id, file2Id, windowSize]);
+
+  const localCorrelationData = useMemo(() => {
+    if (useApi || !buffer1 || !buffer2) return null;
     return calculatePatternCorrelation(buffer1, buffer2, windowSize);
-  }, [buffer1, buffer2, windowSize]);
+  }, [buffer1, buffer2, windowSize, useApi]);
+
+  const correlationData = useApi ? apiData : localCorrelationData;
+
+  if (isLoadingApi) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
+          <p className="text-sm font-medium">Calculating pattern correlation...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!useApi && (!buffer1 || !buffer2)) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        Select two files to compare
+      </div>
+    );
+  }
+
+  if (useApi && (!file1Id || !file2Id)) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        File IDs required for large file comparison
+      </div>
+    );
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current;

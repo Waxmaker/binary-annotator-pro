@@ -260,6 +260,18 @@ const Chat = () => {
     const loadBinaryBuffer = async () => {
       setIsLoadingBuffer(true);
       try {
+        // Check file size first
+        const file = binaryFiles.find(f => f.name === selectedFile);
+        const MAX_SIZE = 10 * 1024 * 1024; // 10MB limit for Chat hex viewer
+
+        if (file && file.size > MAX_SIZE) {
+          toast.warning(`File too large for hex viewer in Chat (${(file.size / (1024 * 1024)).toFixed(1)} MB). Using file context without hex viewer.`);
+          setCurrentBuffer(null);
+          setHexViewerVisible(false);
+          setIsLoadingBuffer(false);
+          return;
+        }
+
         const buffer = await fetchBinaryFile(selectedFile);
         setCurrentBuffer(buffer);
 
@@ -280,7 +292,7 @@ const Chat = () => {
     };
 
     loadBinaryBuffer();
-  }, [selectedFile]);
+  }, [selectedFile, binaryFiles]);
 
   // Load binary files
   useEffect(() => {

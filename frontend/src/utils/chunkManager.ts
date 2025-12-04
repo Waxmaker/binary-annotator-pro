@@ -11,7 +11,9 @@ interface Chunk {
 }
 
 interface FileChunks {
-  [fileName: string]: {
+  [fileKey: string]: {
+    fileId?: number; // Database ID for API calls
+    fileName?: string; // Filename for legacy mode
     size: number;
     chunks: Map<string, Chunk>;
   };
@@ -26,9 +28,12 @@ class ChunkManager {
   }
 
   // Initialize file metadata (size only, no data)
-  initFile(fileName: string, size: number) {
-    if (!this.files[fileName]) {
-      this.files[fileName] = {
+  // Use fileId for API-based loading (preferred for large files)
+  initFile(fileKeyOrName: string, size: number, fileId?: number) {
+    if (!this.files[fileKeyOrName]) {
+      this.files[fileKeyOrName] = {
+        fileId,
+        fileName: !fileId ? fileKeyOrName : undefined,
         size,
         chunks: new Map(),
       };
@@ -40,49 +45,76 @@ class ChunkManager {
     return `${start}-${end}`;
   }
 
-  // Load a chunk from the server using HTTP range request
-  private async loadChunk(fileName: string, start: number, end: number): Promise<Uint8Array> {
-    const response = await fetch(`${this.apiUrl}/get/binary/${fileName}`, {
-      headers: {
-        Range: `bytes=${start}-${end}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to load chunk: ${response.statusText}`);
+  // Load a chunk from the server
+  // Uses new /binary/:id/chunk endpoint when fileId is available
+  // Falls back to Range request with filename for legacy mode
+  private async loadChunk(fileKey: string, start: number, length: number): Promise<Uint8Array> {
+    const file = this.files[fileKey];
+    if (!file) {
+      throw new Error(`File ${fileKey} not initialized`);
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    return new Uint8Array(arrayBuffer);
+    if (file.fileId) {
+      // Use new chunk endpoint (preferred - more efficient)
+      const response = await fetch(
+        `${this.apiUrl}/binary/${file.fileId}/chunk?offset=${start}&length=${length}`
+      );
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(error.error || `Failed to load chunk: ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      // Decode base64 data from Go backend
+      const binaryString = atob(json.data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes;
+    } else {
+      // Legacy mode: Use Range header with filename
+      const end = start + length - 1;
+      const response = await fetch(`${this.apiUrl}/get/binary/${file.fileName}`, {
+        headers: {
+          Range: `bytes=${start}-${end}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load chunk: ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      return new Uint8Array(arrayBuffer);
+    }
   }
 
   // Get bytes from offset with given length (loads chunks as needed)
-  async getBytes(fileName: string, offset: number, length: number): Promise<Uint8Array> {
-    const file = this.files[fileName];
+  async getBytes(fileKey: string, offset: number, length: number): Promise<Uint8Array> {
+    const file = this.files[fileKey];
     if (!file) {
-      throw new Error(`File ${fileName} not initialized`);
+      throw new Error(`File ${fileKey} not initialized`);
     }
 
     // Calculate chunk boundaries
     const chunkStart = Math.floor(offset / CHUNK_SIZE) * CHUNK_SIZE;
-    const chunkEnd = Math.min(
-      Math.ceil((offset + length) / CHUNK_SIZE) * CHUNK_SIZE - 1,
-      file.size - 1
-    );
+    const chunkLength = Math.min(CHUNK_SIZE, file.size - chunkStart);
 
-    const chunkKey = this.getChunkKey(chunkStart, chunkEnd);
+    const chunkKey = this.getChunkKey(chunkStart, chunkStart + chunkLength);
 
     // Check if chunk is already in cache
     let chunk = file.chunks.get(chunkKey);
 
     if (!chunk) {
       // Load chunk from server
-      console.log(`Loading chunk ${chunkKey} for ${fileName}`);
-      const data = await this.loadChunk(fileName, chunkStart, chunkEnd);
+      console.log(`Loading chunk ${chunkKey} for ${fileKey}`);
+      const data = await this.loadChunk(fileKey, chunkStart, chunkLength);
 
       chunk = {
         start: chunkStart,
-        end: chunkEnd,
+        end: chunkStart + data.byteLength - 1,
         data,
         lastAccessed: Date.now(),
       };
@@ -90,7 +122,7 @@ class ChunkManager {
       file.chunks.set(chunkKey, chunk);
 
       // Evict old chunks if cache is too large
-      this.evictOldChunks(fileName);
+      this.evictOldChunks(fileKey);
     } else {
       // Update last accessed time
       chunk.lastAccessed = Date.now();
@@ -98,14 +130,14 @@ class ChunkManager {
 
     // Extract the requested bytes from the chunk
     const localStart = offset - chunk.start;
-    const localEnd = localStart + length;
+    const localEnd = Math.min(localStart + length, chunk.data.byteLength);
 
     return chunk.data.slice(localStart, localEnd);
   }
 
   // Evict least recently used chunks
-  private evictOldChunks(fileName: string) {
-    const file = this.files[fileName];
+  private evictOldChunks(fileKey: string) {
+    const file = this.files[fileKey];
     if (!file) return;
 
     const chunks = Array.from(file.chunks.entries());
@@ -124,8 +156,8 @@ class ChunkManager {
   }
 
   // Preload chunks around a given offset (for smoother scrolling)
-  async preloadAround(fileName: string, offset: number, radius: number = CHUNK_SIZE * 2) {
-    const file = this.files[fileName];
+  async preloadAround(fileKey: string, offset: number, radius: number = CHUNK_SIZE * 2) {
+    const file = this.files[fileKey];
     if (!file) return;
 
     const startOffset = Math.max(0, offset - radius);
@@ -136,12 +168,12 @@ class ChunkManager {
     for (let start = Math.floor(startOffset / CHUNK_SIZE) * CHUNK_SIZE;
          start <= endOffset;
          start += CHUNK_SIZE) {
-      const end = Math.min(start + CHUNK_SIZE - 1, file.size - 1);
-      const chunkKey = this.getChunkKey(start, end);
+      const length = Math.min(CHUNK_SIZE, file.size - start);
+      const chunkKey = this.getChunkKey(start, start + length);
 
       if (!file.chunks.has(chunkKey)) {
         promises.push(
-          this.getBytes(fileName, start, end - start + 1)
+          this.getBytes(fileKey, start, length)
             .then(() => {})
             .catch(err => console.error(`Preload failed for chunk ${chunkKey}:`, err))
         );
@@ -152,10 +184,10 @@ class ChunkManager {
   }
 
   // Clear all chunks for a file
-  clearFile(fileName: string) {
-    if (this.files[fileName]) {
-      this.files[fileName].chunks.clear();
-      delete this.files[fileName];
+  clearFile(fileKey: string) {
+    if (this.files[fileKey]) {
+      this.files[fileKey].chunks.clear();
+      delete this.files[fileKey];
     }
   }
 

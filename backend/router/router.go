@@ -27,6 +27,9 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.GET("/get/binary/:fileName", h.GetBinaryByName)
 	e.GET("/get/yaml/:configName", h.GetYamlByName)
 
+	// Binary chunk loading (for HexViewer)
+	e.GET("/binary/:id/chunk", h.GetBinaryChunk)
+
 	// Binary analysis
 	e.GET("/analysis/trigrams/:name", h.GetBinaryTrigrams)
 
@@ -76,6 +79,16 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	// Binary Search
 	searchHandler := handlers.NewSearchHandler(db)
 	e.POST("/search", searchHandler.Search)
+
+	// Checksum calculation
+	e.POST("/checksum", h.CalculateChecksum)
+
+	// Binary Comparison
+	e.POST("/compare/diff", h.CompareBinaryFiles)
+	e.POST("/compare/delta", h.AnalyzeDelta)
+	e.POST("/compare/correlation", h.CalculatePatternCorrelation)
+	e.POST("/compare/streaming", h.StreamingCompare)
+	e.GET("/compare/export", h.ExportComparison)
 
 	// MCP Docker Manager
 	mcpDockerHandler := handlers.NewMCPDockerHandler()
