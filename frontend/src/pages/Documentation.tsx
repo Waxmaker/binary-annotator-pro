@@ -23,6 +23,7 @@ import {
   Server,
   Database,
   Container,
+  TreePine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -1928,6 +1929,325 @@ tags:
                   </span>
                 </li>
               </ul>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "huffman-tables",
+      title: "Huffman Tables",
+      icon: TreePine,
+      content: (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-3xl font-bold mb-4">Huffman Tables</h2>
+            <p className="text-lg text-muted-foreground mb-6">
+              Educational tool for reverse engineering Huffman coding in binary files.
+            </p>
+          </div>
+
+          <div className="space-y-8">
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">What is Huffman Coding?</h3>
+              <div className="bg-muted/50 border rounded-lg p-6">
+                <p className="text-muted-foreground mb-4">
+                  Huffman coding is a lossless data compression algorithm that assigns variable-length codes to symbols based on their frequency. More frequent symbols get shorter codes, while less frequent symbols get longer codes.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div className="border rounded p-4">
+                    <h4 className="font-semibold mb-2">Key Concepts</h4>
+                    <ul className="space-y-2 text-sm text-muted-foreground ml-4">
+                      <li>• <strong>Symbol:</strong> A value to encode (0-255)</li>
+                      <li>• <strong>Code:</strong> Binary representation</li>
+                      <li>• <strong>Code Length:</strong> Number of bits</li>
+                      <li>• <strong>Prefix-free:</strong> No code is prefix of another</li>
+                    </ul>
+                  </div>
+                  <div className="border rounded p-4">
+                    <h4 className="font-semibold mb-2">Example</h4>
+                    <div className="font-mono text-sm">
+                      <div className="flex justify-between">
+                        <span>Symbol 0:</span>
+                        <span>00 (2 bits)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Symbol 1:</span>
+                        <span>01 (2 bits)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Symbol 2:</span>
+                        <span>10 (2 bits)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Symbol 3:</span>
+                        <span>110 (3 bits)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Symbol 4:</span>
+                        <span>111 (3 bits)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Creating a Huffman Table</h3>
+              <ol className="space-y-4">
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    1
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">Navigate to Huffman Page</p>
+                    <p className="text-sm text-muted-foreground">
+                      Go to the Huffman Table Explorer from the main navigation
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    2
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">Create New Table</p>
+                    <p className="text-sm text-muted-foreground">
+                      In the right panel, click "Create Table" and enter a name
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    3
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">Define Entries</p>
+                    <p className="text-sm text-muted-foreground">
+                      Enter symbol values and their code lengths. The system automatically generates canonical Huffman codes.
+                    </p>
+                    <div className="bg-muted/50 rounded p-3 mt-2 font-mono text-xs">
+                      <p className="text-muted-foreground mb-1">Example input:</p>
+                      <div>Symbol: 0, Code Length: 2</div>
+                      <div>Symbol: 1, Code Length: 2</div>
+                      <div>Symbol: 2, Code Length: 2</div>
+                      <div>Symbol: 3, Code Length: 3</div>
+                    </div>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    4
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">Save Table</p>
+                    <p className="text-sm text-muted-foreground">
+                      Click "Create Table" to save. The table will appear in the list.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Bulk Input Format</h3>
+              <p className="text-muted-foreground mb-4">
+                You can paste multiple entries at once using the bulk input feature:
+              </p>
+              <div className="bg-muted/50 rounded-lg p-6 font-mono text-sm">
+                <pre className="overflow-x-auto">{`# Format: symbol code_length
+# Lines starting with # are comments
+
+0 2
+1 2
+2 3
+5 4
+10 4
+
+# Or with commas:
+0, 2
+1, 2
+2, 3`}</pre>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Decoding Binary Data</h3>
+              <ol className="space-y-4">
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    1
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">Select File</p>
+                    <p className="text-sm text-muted-foreground">
+                      Choose a binary file from the left panel dropdown
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    2
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">Define Section</p>
+                    <p className="text-sm text-muted-foreground">
+                      Set Start Offset and End Offset (in hex) to define the data section to decode
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    3
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">Select Table</p>
+                    <p className="text-sm text-muted-foreground">
+                      Choose a Huffman table from the dropdown
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                    4
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">Decode</p>
+                    <p className="text-sm text-muted-foreground">
+                      Click "Decode" to process the data. View results in the tabs:
+                    </p>
+                    <ul className="mt-2 ml-4 space-y-1 text-sm text-muted-foreground">
+                      <li>• <strong>Tree View:</strong> Visual representation of the Huffman tree</li>
+                      <li>• <strong>Code Table:</strong> Table of all codes with statistics</li>
+                      <li>• <strong>Binary View:</strong> Bit-level view with color coding</li>
+                      <li>• <strong>Decoded:</strong> Final decoded symbols</li>
+                    </ul>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Understanding the Tree View</h3>
+              <div className="space-y-4">
+                <p className="text-muted-foreground">
+                  The Tree View shows the Huffman tree structure:
+                </p>
+                <ul className="space-y-2 ml-4">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span><strong>Root node:</strong> Starting point (empty code)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span><strong>Internal nodes (gray):</strong> Intermediate decision points</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span><strong>Leaf nodes (colored):</strong> Final symbols with their values</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span><strong>Edge labels:</strong> 0 = left branch, 1 = right branch</span>
+                  </li>
+                </ul>
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <p className="text-sm">
+                    <strong>Tip:</strong> Hover over any node to see its code, length, and symbol information.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Balanced vs Unbalanced Trees</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-semibold mb-2 text-green-600">Balanced Tree</h4>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Codes are distributed across both left and right branches:
+                  </p>
+                  <div className="font-mono text-xs bg-muted/50 p-2 rounded">
+                    <div>0 → 00</div>
+                    <div>1 → 01</div>
+                    <div>2 → 10</div>
+                    <div>3 → 110</div>
+                    <div>4 → 111</div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    More efficient compression
+                  </p>
+                </div>
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-semibold mb-2 text-orange-600">Unbalanced Tree</h4>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Codes go mostly in one direction:
+                  </p>
+                  <div className="font-mono text-xs bg-muted/50 p-2 rounded">
+                    <div>0 → 0</div>
+                    <div>1 → 10</div>
+                    <div>2 → 110</div>
+                    <div>3 → 1110</div>
+                    <div>4 → 11110</div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Less efficient, but valid
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Best Practices</h3>
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6">
+                <ul className="space-y-3 ml-4">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                    <span><strong>Start with small sections:</strong> Test your table on small data sections first</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                    <span><strong>Check code lengths:</strong> Ensure the sum of 2^(-length) ≤ 1 (Kraft inequality)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                    <span><strong>Document your tables:</strong> Add descriptions explaining what each table is for</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                    <span><strong>Use meaningful names:</strong> Name tables descriptively (e.g., "ecg_lead1_huffman")</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 dark:text-green-400 mt-1">✓</span>
+                    <span><strong>Compare with original:</strong> Verify decoded data makes sense for your format</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Troubleshooting</h3>
+              <div className="space-y-4">
+                <div className="border-l-4 border-red-500 pl-4">
+                  <h4 className="font-semibold mb-1">Tree shows only one branch</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Your codes are sequential (0, 10, 110, 1110...). This is valid but inefficient. Add symbols with codes that use both branches (00, 01, 10, 110, 111).
+                  </p>
+                </div>
+                <div className="border-l-4 border-red-500 pl-4">
+                  <h4 className="font-semibold mb-1">Decoding fails or produces garbage</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Check that your table matches the encoding used in the file. Verify offsets are correct and the data is actually Huffman-encoded.
+                  </p>
+                </div>
+                <div className="border-l-4 border-red-500 pl-4">
+                  <h4 className="font-semibold mb-1">Cannot create table</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Ensure all code lengths are ≥ 1 and symbols are unique. The system validates the table before saving.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
