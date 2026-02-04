@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { createSampledBuffer, SamplingInfo } from "@/utils/fileSampling";
+import { SamplingInfo } from "@/utils/fileSampling";
 import { addTagToYaml } from "@/utils/yamlTagAdder";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -37,7 +37,6 @@ import {
   MessageSquare,
   BookOpen,
   FileArchive,
-  Zap,
 } from "lucide-react";
 import { useEffect } from "react";
 import { fetchBinaryList, fetchBinaryFile } from "@/lib/api";
@@ -58,6 +57,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { MultiFileDiffDialog } from "@/components/MultiFileDiffDialog";
 
 interface FileData {
   id?: number; // File ID from database
@@ -88,6 +88,7 @@ const Index = () => {
   const [isDeletingFile, setIsDeletingFile] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<string | null>(null);
+  const [multiFileDiffOpen, setMultiFileDiffOpen] = useState(false);
 
   const [currentBuffer, setCurrentBuffer] = useState<ArrayBuffer | null>(null);
   const [isLoadingBuffer, setIsLoadingBuffer] = useState(false);
@@ -158,7 +159,9 @@ const Index = () => {
             strategy: "chunk-based",
           };
 
-          toast.success(`Using efficient chunk-based loading for large file`, { id: loadingToast });
+          toast.success(`Using efficient chunk-based loading for large file`, {
+            id: loadingToast,
+          });
 
           // Store in file object for caching
           file.buffer = buffer;
@@ -422,14 +425,20 @@ const Index = () => {
   const handleAddTag = useCallback(
     (tagName: string, offset: number, size: number, color: string) => {
       try {
-        const newYaml = addTagToYaml(yamlTextRef.current, tagName, offset, size, color);
+        const newYaml = addTagToYaml(
+          yamlTextRef.current,
+          tagName,
+          offset,
+          size,
+          color,
+        );
         updateYaml(newYaml);
         toast.success(`Tag "${tagName}" added to configuration`);
       } catch (error: any) {
         toast.error(`Failed to add tag: ${error.message}`);
       }
     },
-    [updateYaml]
+    [updateYaml],
   );
 
   const loadFilesFromBackend = useCallback(async () => {
@@ -516,6 +525,15 @@ const Index = () => {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setMultiFileDiffOpen(true)}
+            className="gap-2"
+          >
+            <GitCompare className="h-4 w-4" />
+            Multi-File Diff
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setSettingsOpen(true)}
             className="gap-2"
           >
@@ -544,6 +562,14 @@ const Index = () => {
       </header>
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <MultiFileDiffDialog
+        open={multiFileDiffOpen}
+        onOpenChange={setMultiFileDiffOpen}
+        onYamlGenerated={(yaml) => {
+          updateYaml(yaml);
+          setSelectTab("yaml");
+        }}
+      />
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
@@ -856,7 +882,10 @@ const Index = () => {
             <ResizablePanelGroup direction="vertical">
               {/* Top Panel - Tabs for Highlights/Notes */}
               <ResizablePanel defaultSize={40} minSize={10}>
-                <Tabs defaultValue="highlights" className="h-full flex flex-col">
+                <Tabs
+                  defaultValue="highlights"
+                  className="h-full flex flex-col"
+                >
                   <TabsList className="grid w-full h-auto grid-cols-2 rounded-none border-b border-panel-border">
                     <TabsTrigger value="highlights" className="gap-1.5">
                       Highlights
