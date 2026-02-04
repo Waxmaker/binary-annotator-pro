@@ -221,3 +221,26 @@ type RAGDocument struct {
 	Status     string `gorm:"default:'indexed'" json:"status"` // indexed, error, deleted
 	ErrorMsg   string `json:"error_msg,omitempty"`             // Error message if failed
 }
+
+// HuffmanTable stores Huffman coding tables for decoding binary data
+type HuffmanTable struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	Name        string              `gorm:"uniqueIndex;not null" json:"name"` // e.g., "table_fukuda"
+	Description string              `json:"description,omitempty"`
+	Entries     []HuffmanTableEntry `gorm:"foreignKey:TableID" json:"entries,omitempty"`
+}
+
+// HuffmanTableEntry represents a single symbol-to-code mapping in a Huffman table
+type HuffmanTableEntry struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	TableID    uint   `gorm:"index;not null" json:"table_id"`
+	Symbol     int    `gorm:"not null" json:"symbol"`      // The symbol value (e.g., 3, 4, etc.)
+	CodeLength int    `gorm:"not null" json:"code_length"` // Bit length of the code
+	Code       string `json:"code"`                        // Generated Huffman code (binary string)
+}
