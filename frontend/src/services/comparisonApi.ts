@@ -211,3 +211,86 @@ export async function exportComparison(
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// ========== Multi-File Comparison API ==========
+
+export interface CommonRegion {
+  offsets: number[];
+  sizes: number[];
+  file_ids: number[];
+}
+
+export interface MultiFileStats {
+  total_files: number;
+  file_sizes: number[];
+  min_file_size: number;
+  max_file_size: number;
+  common_bytes: number;
+  percent_common: number;
+  largest_common_rgn: number;
+}
+
+export interface MultiFileCompareResponse {
+  common_regions: CommonRegion[];
+  stats: MultiFileStats;
+  file_names: string[];
+  total_regions: number;
+  truncated: boolean;
+}
+
+/**
+ * Compare multiple binary files and find common regions
+ */
+export async function compareMultipleFiles(
+  fileIds: number[],
+  minRegionSize: number = 4,
+  maxRegions: number = 1000
+): Promise<MultiFileCompareResponse> {
+  const response = await fetch(`${API_BASE_URL}/compare/multi`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      file_ids: fileIds,
+      min_region_size: minRegionSize,
+      max_regions: maxRegions,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Generate YAML configuration from multi-file comparison results
+ */
+export async function generateMultiFileDiffYaml(
+  fileIds: number[],
+  commonRegions: CommonRegion[],
+  fileNames: string[]
+): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/compare/multi/generate-yaml`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      file_ids: fileIds,
+      common_regions: commonRegions,
+      file_names: fileNames,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.yaml;
+}
