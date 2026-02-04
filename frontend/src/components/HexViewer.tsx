@@ -9,6 +9,7 @@ import { chunkManager } from "@/utils/chunkManager";
 import { HexViewerContextMenu } from "./HexViewerContextMenu";
 import { AddTagDialog } from "./AddTagDialog";
 import { ChecksumDialog } from "./ChecksumDialog";
+import { HuffmanDecodeDialog } from "./HuffmanDecodeDialog";
 import { toast } from "sonner";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -56,6 +57,7 @@ export function HexViewer({
   const [showChecksumDialog, setShowChecksumDialog] = useState(false);
   const [checksumData, setChecksumData] = useState<any>(null);
   const [isLoadingChecksum, setIsLoadingChecksum] = useState(false);
+  const [showHuffmanDialog, setShowHuffmanDialog] = useState(false);
 
   // Use chunk-based loading if fileName is provided, otherwise use buffer
   const useChunks = !buffer && fileName && propsFileSize;
@@ -319,6 +321,14 @@ export function HexViewer({
     }
   };
 
+  const handleHuffmanDecode = () => {
+    if (!selection || !fileId || !fileName) {
+      toast.error("Cannot decode: No file or selection");
+      return;
+    }
+    setShowHuffmanDialog(true);
+  };
+
   const handleCalculateChecksum = async () => {
     if (!selection || !fileId) {
       toast.error("Cannot calculate checksum: No file or selection");
@@ -444,6 +454,19 @@ export function HexViewer({
         </div>
       </div>
 
+      {/* Legend - Only for Diff */}
+      {highlights.some(h => h.type === 'diff') && (
+        <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-muted/30 px-4 py-2">
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-muted-foreground font-semibold">Legend:</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(255, 224, 130, 0.15)', border: '1px solid rgba(255, 224, 130, 0.4)' }}></div>
+              <span>Diff</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hex View */}
       <div
         ref={containerRef}
@@ -492,6 +515,7 @@ export function HexViewer({
           onClose={() => setContextMenu(null)}
           onAddToConfig={handleAddToConfig}
           onCalculateChecksum={handleCalculateChecksum}
+          onHuffmanDecode={handleHuffmanDecode}
           hasSelection={!!selection}
         />
       )}
@@ -515,6 +539,18 @@ export function HexViewer({
         checksums={checksumData}
         loading={isLoadingChecksum}
       />
+
+      {/* Huffman Decode Dialog */}
+      {selection && fileId && fileName && (
+        <HuffmanDecodeDialog
+          open={showHuffmanDialog}
+          onClose={() => setShowHuffmanDialog(false)}
+          fileId={fileId}
+          fileName={fileName}
+          offset={selection.start}
+          length={selection.end - selection.start + 1}
+        />
+      )}
     </div>
   );
 }

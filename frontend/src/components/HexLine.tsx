@@ -68,7 +68,7 @@ export const HexLine = memo(function HexLine({
       </div>
 
       {/* ASCII */}
-      <div className="w-32 flex-shrink-0 text-hex-ascii pl-4 border-l border-border">
+      <div className="w-36 flex-shrink-0 text-hex-ascii px-4 border-l border-border">
         {bytes.map((byte, i) => {
           const byteOffset = offset + i;
           const selected = isSelected(byteOffset);

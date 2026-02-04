@@ -3,7 +3,11 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatAddress } from "@/utils/binaryUtils";
-import { convertBytesECG, formatHexBytesSpaced, applyXor } from "@/utils/conversionsECG";
+import {
+  convertBytesECG,
+  formatHexBytesSpaced,
+  applyXor,
+} from "@/utils/conversionsECG";
 import {
   generateKaitaiSnippet,
   suggestFieldType,
@@ -32,7 +36,9 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
 
   // Reset XOR state when selection changes
   // Create a unique key from the bytes to detect actual content changes
-  const selectionKey = selection ? `${selection.start}-${selection.end}-${selection.bytes.slice(0, 4).join(',')}` : null;
+  const selectionKey = selection
+    ? `${selection.start}-${selection.end}-${selection.bytes.slice(0, 4).join(",")}`
+    : null;
 
   useEffect(() => {
     setXorKey("");
@@ -224,9 +230,7 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
               </div>
               <Separator />
               <div>
-                <p className="text-xs text-muted-foreground mb-1">
-                  Bit Flags (first byte):
-                </p>
+                <p className="text-xs text-muted-foreground mb-1">Bit Flags:</p>
                 <p className="text-xs font-mono text-accent">
                   {conversions.bitFlags}
                 </p>
@@ -407,16 +411,24 @@ export function ECGInspector({ selection }: ECGInspectorProps) {
               <>
                 <Separator />
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Result (Hex):</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Result (Hex):
+                  </p>
                   <p className="text-xs font-mono text-accent break-all">
                     {formatHexBytesSpaced(xorResult)}
                   </p>
                 </div>
                 <Separator />
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Result (ASCII):</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Result (ASCII):
+                  </p>
                   <p className="text-xs font-mono text-hex-ascii break-all">
-                    {xorResult.map(b => (b >= 32 && b <= 126 ? String.fromCharCode(b) : '.')).join('')}
+                    {xorResult
+                      .map((b) =>
+                        b >= 32 && b <= 126 ? String.fromCharCode(b) : ".",
+                      )
+                      .join("")}
                   </p>
                 </div>
               </>

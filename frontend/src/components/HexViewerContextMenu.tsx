@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Plus, Calculator } from "lucide-react";
+import { Plus, Calculator, Binary } from "lucide-react";
 
 interface HexViewerContextMenuProps {
   x: number;
@@ -7,6 +7,7 @@ interface HexViewerContextMenuProps {
   onClose: () => void;
   onAddToConfig: () => void;
   onCalculateChecksum?: () => void;
+  onHuffmanDecode?: () => void;
   hasSelection: boolean;
 }
 
@@ -16,6 +17,7 @@ export function HexViewerContextMenu({
   onClose,
   onAddToConfig,
   onCalculateChecksum,
+  onHuffmanDecode,
   hasSelection,
 }: HexViewerContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -85,6 +87,24 @@ export function HexViewerContextMenu({
       >
         <Calculator className="h-4 w-4" />
         <span>Calculate checksums</span>
+      </button>
+
+      <button
+        className={`w-full px-4 py-2 text-sm text-left flex items-center gap-2 transition-colors ${
+          hasSelection
+            ? "hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+            : "opacity-50 cursor-not-allowed"
+        }`}
+        onClick={() => {
+          if (hasSelection && onHuffmanDecode) {
+            onHuffmanDecode();
+            onClose();
+          }
+        }}
+        disabled={!hasSelection}
+      >
+        <Binary className="h-4 w-4" />
+        <span>Huffman decode</span>
       </button>
 
       {!hasSelection && (
