@@ -23,7 +23,8 @@ import {
   Server,
   Database,
   Container,
-  TreePine,
+  Binary,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -1937,13 +1938,14 @@ tags:
     {
       id: "huffman-tables",
       title: "Huffman Tables",
-      icon: TreePine,
+      icon: Binary,
       content: (
         <div className="space-y-6">
           <div>
             <h2 className="text-3xl font-bold mb-4">Huffman Tables</h2>
             <p className="text-lg text-muted-foreground mb-6">
-              Educational tool for reverse engineering Huffman coding in binary files.
+              Educational tool for reverse engineering Huffman coding in binary files. 
+              Features automatic pattern detection to help identify Huffman codes in unknown data.
             </p>
           </div>
 
@@ -1994,7 +1996,77 @@ tags:
             </div>
 
             <div>
-              <h3 className="text-2xl font-semibold mb-4">Creating a Huffman Table</h3>
+              <h3 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-primary" />
+                Pattern Analyzer (New!)
+              </h3>
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+                <p className="text-muted-foreground mb-4">
+                  The Pattern Analyzer automatically detects potential Huffman codes in your binary data. 
+                  It analyzes bit patterns and suggests code lengths based on frequency analysis.
+                </p>
+                <ol className="space-y-4">
+                  <li className="flex gap-4">
+                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                      1
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-semibold mb-2">Select File Section</p>
+                      <p className="text-sm text-muted-foreground">
+                        Choose a file and define the start/end offsets of the section you want to analyze
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                      2
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-semibold mb-2">Configure Analysis</p>
+                      <p className="text-sm text-muted-foreground">
+                        Set the maximum code length (1-16 bits). Longer lengths detect more complex patterns but take more time.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                      3
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-semibold mb-2">Run Analysis</p>
+                      <p className="text-sm text-muted-foreground">
+                        Click "Analyze" to detect patterns. The backend will process the data and return potential Huffman codes.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                      4
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-semibold mb-2">Review and Select</p>
+                      <p className="text-sm text-muted-foreground">
+                        Patterns are grouped by length and sorted by frequency. Select the patterns you want to include in your table.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
+                      5
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-semibold mb-2">Create Table</p>
+                      <p className="text-sm text-muted-foreground">
+                        Enter a table name and click "Create Table". Symbols will be automatically assigned (0, 1, 2, etc.).
+                      </p>
+                    </div>
+                  </li>
+                </ol>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Creating a Huffman Table Manually</h3>
               <ol className="space-y-4">
                 <li className="flex gap-4">
                   <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
@@ -2014,7 +2086,7 @@ tags:
                   <div className="flex-1">
                     <p className="font-semibold mb-2">Create New Table</p>
                     <p className="text-sm text-muted-foreground">
-                      In the right panel, click "Create Table" and enter a name
+                      In the top-right panel (Editor tab), click "Create Table" and enter a name
                     </p>
                   </div>
                 </li>
