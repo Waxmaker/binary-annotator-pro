@@ -265,7 +265,7 @@ const HuffmanPage = () => {
       {/* Header */}
       <header className="h-14 border-b border-panel-border bg-panel-header flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
-          <TreePine className="h-6 w-6 text-primary" />
+          <Activity className="h-6 w-6 text-primary" />
           <div>
             <h1 className="text-lg font-bold text-foreground">
               Huffman Table Explorer
