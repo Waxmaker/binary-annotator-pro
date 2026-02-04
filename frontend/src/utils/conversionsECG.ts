@@ -16,13 +16,13 @@ export interface ECGConversions {
   float32BE: number;
   float64LE: number;
   float64BE: number;
-  
+
   // ECG-specific conversions
   signed12bit: number | null;
   packed3byte: number | null;
   amplitudeMV: number | null;
   bitFlags: string;
-  
+
   // Text
   ascii: string;
   utf8: string;
@@ -34,17 +34,17 @@ export interface ECGConversions {
  */
 export function extract12BitSigned(bytes: number[]): number | null {
   if (bytes.length < 2) return null;
-  
+
   // Combine two bytes into 12-bit value
-  let value = (bytes[0] | (bytes[1] << 8)) & 0x0FFF;
-  
+  let value = (bytes[0] | (bytes[1] << 8)) & 0x0fff;
+
   // Check sign bit (bit 11)
   if (value & 0x0800) {
     // Negative number - extend sign
-    value = value | 0xF000;
-    value = -(~value + 1) & 0xFFFF;
+    value = value | 0xf000;
+    value = -(~value + 1) & 0xffff;
   }
-  
+
   return value;
 }
 
@@ -54,15 +54,15 @@ export function extract12BitSigned(bytes: number[]): number | null {
  */
 export function extract3BytePacked(bytes: number[]): number | null {
   if (bytes.length < 3) return null;
-  
+
   // Little-endian 24-bit signed
   let value = bytes[0] | (bytes[1] << 8) | (bytes[2] << 16);
-  
+
   // Sign extend to 32-bit
   if (value & 0x800000) {
-    value = value | 0xFF000000;
+    value = value | 0xff000000;
   }
-  
+
   return value;
 }
 
@@ -70,7 +70,10 @@ export function extract3BytePacked(bytes: number[]): number | null {
  * Convert ADC value to millivolts
  * Typical ECG: 1 LSB = 2.5 µV (for 12-bit, 5mV range)
  */
-export function convertToMillivolts(adcValue: number, gain: number = 2.5): number {
+export function convertToMillivolts(
+  adcValue: number,
+  gain: number = 2.5,
+): number {
   return (adcValue * gain) / 1000; // Convert µV to mV
 }
 
@@ -78,7 +81,7 @@ export function convertToMillivolts(adcValue: number, gain: number = 2.5): numbe
  * Format byte as binary flags
  */
 export function formatBitFlags(byte: number): string {
-  return byte.toString(2).padStart(8, '0');
+  return byte.toString(2).padStart(8, "0");
 }
 
 /**
@@ -87,12 +90,12 @@ export function formatBitFlags(byte: number): string {
 export function convertBytesECG(bytes: number[]): ECGConversions {
   const buffer = new ArrayBuffer(Math.max(8, bytes.length));
   const view = new DataView(buffer);
-  
+
   // Fill buffer with bytes
   bytes.forEach((byte, i) => {
     view.setUint8(i, byte);
   });
-  
+
   // Standard conversions
   const conversions: ECGConversions = {
     uint8: bytes.length > 0 ? view.getUint8(0) : 0,
@@ -109,18 +112,26 @@ export function convertBytesECG(bytes: number[]): ECGConversions {
     float32BE: bytes.length >= 4 ? view.getFloat32(0, false) : 0,
     float64LE: bytes.length >= 8 ? view.getFloat64(0, true) : 0,
     float64BE: bytes.length >= 8 ? view.getFloat64(0, false) : 0,
-    
+
     // ECG-specific
     signed12bit: extract12BitSigned(bytes),
     packed3byte: extract3BytePacked(bytes),
-    amplitudeMV: bytes.length >= 2 ? convertToMillivolts(view.getInt16(0, true)) : null,
-    bitFlags: bytes.length > 0 ? formatBitFlags(bytes[0]) : '00000000',
-    
+    amplitudeMV:
+      bytes.length >= 2 ? convertToMillivolts(view.getInt16(0, true)) : null,
+    bitFlags:
+      bytes.length > 0
+        ? bytes.map((b) => formatBitFlags(b)).join(" ")
+        : "00000000",
+
     // Text
-    ascii: bytes.map(b => (b >= 32 && b <= 126 ? String.fromCharCode(b) : '.')).join(''),
-    utf8: new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(bytes)),
+    ascii: bytes
+      .map((b) => (b >= 32 && b <= 126 ? String.fromCharCode(b) : "."))
+      .join(""),
+    utf8: new TextDecoder("utf-8", { fatal: false }).decode(
+      new Uint8Array(bytes),
+    ),
   };
-  
+
   return conversions;
 }
 
@@ -128,14 +139,16 @@ export function convertBytesECG(bytes: number[]): ECGConversions {
  * Format hex bytes with spacing
  */
 export function formatHexBytesSpaced(bytes: number[]): string {
-  return bytes.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+  return bytes
+    .map((b) => b.toString(16).padStart(2, "0").toUpperCase())
+    .join(" ");
 }
 
 /**
  * Parse hex pattern string (e.g., "FF FF 11" or "FFFF11")
  */
 export function parseHexPattern(pattern: string): number[] {
-  const cleaned = pattern.replace(/\s+/g, '');
+  const cleaned = pattern.replace(/\s+/g, "");
   const bytes: number[] = [];
 
   for (let i = 0; i < cleaned.length; i += 2) {
