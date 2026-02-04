@@ -34,6 +34,24 @@ export function useYamlConfig(buffer: ArrayBuffer | null, fileName: string | nul
       });
     }
 
+    // Add diff highlights (multi-file common regions)
+    if (config.diff) {
+      Object.entries(config.diff).forEach(([name, diffRule]) => {
+        // Use the first offset/size (index 0) for the current file
+        // Future enhancement: match by fileName
+        const offset = diffRule.offsets[0] as number;
+        const size = diffRule.sizes[0];
+
+        ranges.push({
+          start: offset,
+          end: offset + size,
+          color: diffRule.color,
+          name: `${name} (common across ${diffRule.files.length} files)`,
+          type: 'diff',
+        });
+      });
+    }
+
     return ranges;
   }, [config, buffer]);
 
