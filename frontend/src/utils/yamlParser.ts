@@ -18,9 +18,17 @@ export interface TagRule {
   color: string;
 }
 
+export interface DiffRule {
+  offsets: (number | string)[]; // Support hex strings
+  sizes: number[];
+  files: string[];
+  color: string;
+}
+
 export interface YamlConfig {
   search?: Record<string, SearchRule>;
   tags?: Record<string, TagRule>;
+  diff?: Record<string, DiffRule>;
 }
 
 export interface ParsedYamlResult {
@@ -57,6 +65,16 @@ export function parseYamlConfig(yamlText: string): ParsedYamlResult {
         if (search.end !== undefined && typeof search.end === 'string') {
           search.end = parseInt(search.end, 16);
         }
+      });
+    }
+
+    // Convert hex strings to numbers for diff.offsets
+    if (parsed.diff) {
+      Object.keys(parsed.diff).forEach(key => {
+        const diff = parsed.diff![key];
+        diff.offsets = diff.offsets.map(offset =>
+          typeof offset === 'string' ? parseInt(offset, 16) : offset
+        );
       });
     }
 
