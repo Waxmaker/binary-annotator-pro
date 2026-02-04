@@ -37,7 +37,17 @@ import {
   MessageSquare,
   BookOpen,
   FileArchive,
+  ChevronDown,
+  Menu,
+  Binary,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useEffect } from "react";
 import { fetchBinaryList, fetchBinaryFile } from "@/lib/api";
 import { ByteStatistics } from "@/components/ByteStatistics";
@@ -513,51 +523,44 @@ const Index = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/chat")}
-            className="gap-2"
-          >
-            <MessageSquare className="h-4 w-4" />
-            AI Chat
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMultiFileDiffOpen(true)}
-            className="gap-2"
-          >
-            <GitCompare className="h-4 w-4" />
-            Multi-File Diff
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSettingsOpen(true)}
-            className="gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            AI Settings
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/ecg-viewer")}
-            className="gap-2"
-          >
-            <LineChart className="h-4 w-4" />
-            Sample Viewer
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/documentation")}
-            className="gap-2"
-          >
-            <BookOpen className="h-4 w-4" />
-            Docs
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Menu className="h-4 w-4" />
+                Menu
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => navigate("/huffman")}>
+                <Binary className="h-4 w-4 mr-2" />
+                Huffman Tables
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate("/chat")}>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                AI Chat
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setMultiFileDiffOpen(true)}>
+                <GitCompare className="h-4 w-4 mr-2" />
+                Multi-File Diff
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate("/ecg-viewer")}>
+                <LineChart className="h-4 w-4 mr-2" />
+                Sample Viewer
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+                <Settings className="h-4 w-4 mr-2" />
+                AI Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/documentation")}>
+                <BookOpen className="h-4 w-4 mr-2" />
+                Documentation
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

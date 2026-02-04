@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Home, Play, RotateCcw, Binary, Table2, FileOutput } from "lucide-react";
+import { Activity, Home, Play, RotateCcw, Binary, Table2, FileOutput, GitBranch } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fetchBinaryList } from "@/lib/api";
 import {
@@ -421,7 +421,7 @@ const HuffmanPage = () => {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
               <TabsList className="mx-4 mt-2">
                 <TabsTrigger value="tree" className="gap-2">
-                  <TreePine className="h-4 w-4" />
+                  <GitBranch className="h-4 w-4" />
                   Tree View
                 </TabsTrigger>
                 <TabsTrigger value="table" className="gap-2">
