@@ -90,6 +90,10 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.POST("/compare/streaming", h.StreamingCompare)
 	e.GET("/compare/export", h.ExportComparison)
 
+	// Multi-file comparison
+	e.POST("/compare/multi", h.CompareMultipleFiles)
+	e.POST("/compare/multi/generate-yaml", h.GenerateMultiFileDiffYaml)
+
 	// MCP Docker Manager
 	mcpDockerHandler := handlers.NewMCPDockerHandler()
 	e.GET("/mcp/docker/health", mcpDockerHandler.GetMCPManagerHealth)
@@ -113,5 +117,14 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 
 	// ECG Conversion
 	e.POST("/convert/ecg", h.ConvertECGData)
+
+	// Huffman Tables
+	e.POST("/huffman/tables", h.CreateHuffmanTable)
+	e.GET("/huffman/tables", h.ListHuffmanTables)
+	e.GET("/huffman/tables/:id", h.GetHuffmanTable)
+	e.GET("/huffman/tables/name/:name", h.GetHuffmanTableByName)
+	e.PUT("/huffman/tables/:id", h.UpdateHuffmanTable)
+	e.DELETE("/huffman/tables/:id", h.DeleteHuffmanTable)
+	e.POST("/huffman/decode", h.DecodeHuffmanSelection)
 
 }
