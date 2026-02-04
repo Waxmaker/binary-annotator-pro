@@ -26,6 +26,7 @@ import { HuffmanBinaryView } from "@/components/HuffmanBinaryView";
 import { HuffmanDecodedView } from "@/components/HuffmanDecodedView";
 import { HuffmanEditor } from "@/components/HuffmanEditor";
 import { HuffmanStats } from "@/components/HuffmanStats";
+import { HuffmanPatternAnalyzer } from "@/components/HuffmanPatternAnalyzer";
 
 interface FileData {
   id: number;
@@ -474,15 +475,32 @@ const HuffmanPage = () => {
 
           <ResizableHandle />
 
-          {/* Right Panel - Editor */}
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
-            <HuffmanEditor
-              tables={tables}
-              selectedTableId={selectedTableId}
-              onTableSelect={setSelectedTableId}
-              onTableCreated={handleTableCreated}
-              onTablesChanged={loadTables}
-            />
+          <ResizableHandle />
+
+          {/* Right Panel - Editor & Analyzer */}
+          <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+            <ResizablePanelGroup direction="vertical">
+              <ResizablePanel defaultSize={50} minSize={30}>
+                <HuffmanEditor
+                  tables={tables}
+                  selectedTableId={selectedTableId}
+                  onTableSelect={setSelectedTableId}
+                  onTableCreated={handleTableCreated}
+                  onTablesChanged={loadTables}
+                />
+              </ResizablePanel>
+              
+              <ResizableHandle />
+              
+              <ResizablePanel defaultSize={50} minSize={30}>
+                <HuffmanPatternAnalyzer
+                  fileId={selectedFileId}
+                  startOffset={startOffset}
+                  endOffset={endOffset}
+                  onTableCreated={handleTableCreated}
+                />
+              </ResizablePanel>
+            </ResizablePanelGroup>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
