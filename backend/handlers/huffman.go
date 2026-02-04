@@ -261,11 +261,11 @@ func (h *Handler) DeleteHuffmanTable(c echo.Context) error {
 // DecodeHuffmanSelection decodes a binary selection using a Huffman table
 func (h *Handler) DecodeHuffmanSelection(c echo.Context) error {
 	var req struct {
-		TableID   uint   `json:"table_id"`
-		FileID    uint   `json:"file_id"`
-		Offset    int64  `json:"offset"`
-		Length    int64  `json:"length"`
-		BitOffset int    `json:"bit_offset"` // Start bit within the first byte (0-7)
+		TableID   uint  `json:"table_id"`
+		FileID    uint  `json:"file_id"`
+		Offset    int64 `json:"offset"`
+		Length    int64 `json:"length"`
+		BitOffset int   `json:"bit_offset"` // Start bit within the first byte (0-7)
 	}
 
 	if err := c.Bind(&req); err != nil {
@@ -341,4 +341,109 @@ func decodeHuffmanData(data []byte, codeMap map[string]int, bitOffset int) []int
 	}
 
 	return result
+}
+
+// AnalyzeHuffmanPatterns analyzes a binary section to detect potential Huffman patterns
+func (h *Handler) AnalyzeHuffmanPatterns(c echo.Context) error {
+	var req struct {
+		FileID        uint `json:"file_id"`
+		Offset        int  `json:"offset"`
+		Length        int  `json:"length"`
+		MaxCodeLength int  `json:"max_code_length"`
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+
+	if req.MaxCodeLength < 1 || req.MaxCodeLength > 16 {
+		req.MaxCodeLength = 8
+	}
+
+	// Load file data
+	var file models.File
+	if err := h.db.GormDB.First(&file, req.FileID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "File not found"})
+	}
+
+	// Validate offset and length
+	if req.Offset < 0 || req.Offset >= len(file.Data) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid offset"})
+	}
+
+	endOffset := req.Offset + req.Length
+	if endOffset > len(file.Data) {
+		endOffset = len(file.Data)
+	}
+
+	selection := file.Data[req.Offset:endOffset]
+
+	// Extract bits
+	var bits []int
+	for i := 0; i < len(selection) && i < 65536; i++ {
+		b := selection[i]
+		for bit := 0; bit < 8; bit++ {
+			bits = append(bits, int((b>>(7-bit))&1))
+		}
+	}
+
+	// Find repeating patterns
+	patterns := make(map[string]int)
+
+	for patternLen := 1; patternLen <= req.MaxCodeLength && patternLen <= 16; patternLen++ {
+		localPatterns := make(map[string]int)
+
+		for i := 0; i <= len(bits)-patternLen; i++ {
+			pattern := ""
+			for j := 0; j < patternLen; j++ {
+				if bits[i+j] == 1 {
+					pattern += "1"
+				} else {
+					pattern += "0"
+				}
+			}
+			localPatterns[pattern]++
+		}
+
+		// Keep patterns that appear frequently
+		for pattern, count := range localPatterns {
+			if count >= 3 {
+				patterns[pattern] = count
+			}
+		}
+	}
+
+	// Sort patterns by frequency and length
+	type patternInfo struct {
+		Pattern string `json:"pattern"`
+		Length  int    `json:"length"`
+		Count   int    `json:"count"`
+	}
+
+	var result []patternInfo
+	for pattern, count := range patterns {
+		result = append(result, patternInfo{
+			Pattern: pattern,
+			Length:  len(pattern),
+			Count:   count,
+		})
+	}
+
+	// Sort by count (descending), then by length (ascending)
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Count != result[j].Count {
+			return result[i].Count > result[j].Count
+		}
+		return result[i].Length < result[j].Length
+	})
+
+	// Limit to top 32 patterns
+	if len(result) > 32 {
+		result = result[:32]
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"patterns":   result,
+		"total_bits": len(bits),
+	})
 }

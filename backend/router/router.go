@@ -126,5 +126,6 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.PUT("/huffman/tables/:id", h.UpdateHuffmanTable)
 	e.DELETE("/huffman/tables/:id", h.DeleteHuffmanTable)
 	e.POST("/huffman/decode", h.DecodeHuffmanSelection)
+	e.POST("/huffman/analyze", h.AnalyzeHuffmanPatterns)
 
 }
