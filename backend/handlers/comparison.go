@@ -3,6 +3,7 @@ package handlers
 import (
 	"binary-annotator-pro/models"
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/http"
 
@@ -607,4 +608,287 @@ func (h *Handler) ExportComparison(c echo.Context) error {
 	// Re-use CompareBinaryFiles logic but return as attachment
 	c.Response().Header().Set("Content-Disposition", "attachment; filename=comparison.json")
 	return h.CompareBinaryFiles(c)
+}
+
+// ========== Multi-File Comparison API ==========
+
+// MultiFileCompareRequest represents a request to compare multiple files
+type MultiFileCompareRequest struct {
+	FileIDs       []uint `json:"file_ids"`       // Minimum 2 files
+	MinRegionSize int    `json:"min_region_size"` // Default: 4 bytes
+	MaxRegions    int    `json:"max_regions"`     // Default: 1000
+}
+
+// CommonRegion represents a region common to all files
+type CommonRegion struct {
+	Offsets []int  `json:"offsets"` // Parallel arrays
+	Sizes   []int  `json:"sizes"`
+	FileIDs []uint `json:"file_ids"`
+}
+
+// MultiFileStats provides statistics about the comparison
+type MultiFileStats struct {
+	TotalFiles       int     `json:"total_files"`
+	FileSizes        []int   `json:"file_sizes"`
+	MinFileSize      int     `json:"min_file_size"`
+	MaxFileSize      int     `json:"max_file_size"`
+	CommonBytes      int     `json:"common_bytes"`
+	PercentCommon    float64 `json:"percent_common"`
+	LargestCommonRgn int     `json:"largest_common_rgn"`
+}
+
+// MultiFileCompareResponse contains comparison results and statistics
+type MultiFileCompareResponse struct {
+	CommonRegions []CommonRegion `json:"common_regions"`
+	Stats         MultiFileStats `json:"stats"`
+	FileNames     []string       `json:"file_names"`
+	TotalRegions  int            `json:"total_regions"`
+	Truncated     bool           `json:"truncated"`
+}
+
+// CompareMultipleFiles finds common byte regions across multiple files
+func (h *Handler) CompareMultipleFiles(c echo.Context) error {
+	var req MultiFileCompareRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
+	}
+
+	// Validate
+	if len(req.FileIDs) < 2 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Minimum 2 files required"})
+	}
+	if req.MinRegionSize <= 0 {
+		req.MinRegionSize = 4
+	}
+	if req.MaxRegions <= 0 {
+		req.MaxRegions = 1000
+	}
+
+	// Performance warning
+	if len(req.FileIDs) > 10 {
+		c.Logger().Warn("Comparing more than 10 files may impact performance")
+	}
+
+	// Load all files from database
+	files := make([]models.File, len(req.FileIDs))
+	fileNames := make([]string, len(req.FileIDs))
+	fileSizes := make([]int, len(req.FileIDs))
+
+	for i, fileID := range req.FileIDs {
+		if err := h.db.GormDB.First(&files[i], fileID).Error; err != nil {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": fmt.Sprintf("File not found with ID: %d", fileID),
+			})
+		}
+		fileNames[i] = files[i].Name
+		fileSizes[i] = len(files[i].Data)
+	}
+
+	// Find minimum file size (comparison limit)
+	minSize := fileSizes[0]
+	maxSize := fileSizes[0]
+	for _, size := range fileSizes {
+		if size < minSize {
+			minSize = size
+		}
+		if size > maxSize {
+			maxSize = size
+		}
+	}
+
+	// Warn if files have different sizes
+	if minSize != maxSize {
+		c.Logger().Warn("Files have different sizes - comparison limited to minimum size")
+	}
+
+	// Sliding window algorithm to find common regions
+	commonRegions := []CommonRegion{}
+	currentRegionStart := -1
+	totalCommonBytes := 0
+	largestRegion := 0
+	truncated := false
+
+	for offset := 0; offset < minSize; offset++ {
+		// Check if byte at this offset is identical in ALL files
+		allMatch := true
+		refByte := files[0].Data[offset]
+
+		for j := 1; j < len(files); j++ {
+			if files[j].Data[offset] != refByte {
+				allMatch = false
+				break
+			}
+		}
+
+		if allMatch {
+			// Start or continue current region
+			if currentRegionStart == -1 {
+				currentRegionStart = offset
+			}
+		} else {
+			// End current region if it exists and meets minimum size
+			if currentRegionStart != -1 {
+				regionSize := offset - currentRegionStart
+				if regionSize >= req.MinRegionSize {
+					if len(commonRegions) >= req.MaxRegions {
+						truncated = true
+						break
+					}
+
+					// Create region with parallel arrays
+					offsets := make([]int, len(files))
+					sizes := make([]int, len(files))
+					for j := range files {
+						offsets[j] = currentRegionStart
+						sizes[j] = regionSize
+					}
+
+					commonRegions = append(commonRegions, CommonRegion{
+						Offsets: offsets,
+						Sizes:   sizes,
+						FileIDs: req.FileIDs,
+					})
+
+					totalCommonBytes += regionSize
+					if regionSize > largestRegion {
+						largestRegion = regionSize
+					}
+				}
+				currentRegionStart = -1
+			}
+		}
+	}
+
+	// Handle final region
+	if currentRegionStart != -1 && !truncated {
+		regionSize := minSize - currentRegionStart
+		if regionSize >= req.MinRegionSize {
+			if len(commonRegions) < req.MaxRegions {
+				offsets := make([]int, len(files))
+				sizes := make([]int, len(files))
+				for j := range files {
+					offsets[j] = currentRegionStart
+					sizes[j] = regionSize
+				}
+
+				commonRegions = append(commonRegions, CommonRegion{
+					Offsets: offsets,
+					Sizes:   sizes,
+					FileIDs: req.FileIDs,
+				})
+
+				totalCommonBytes += regionSize
+				if regionSize > largestRegion {
+					largestRegion = regionSize
+				}
+			} else {
+				truncated = true
+			}
+		}
+	}
+
+	// Calculate statistics
+	percentCommon := 0.0
+	if minSize > 0 {
+		percentCommon = float64(totalCommonBytes) / float64(minSize) * 100
+	}
+
+	stats := MultiFileStats{
+		TotalFiles:       len(files),
+		FileSizes:        fileSizes,
+		MinFileSize:      minSize,
+		MaxFileSize:      maxSize,
+		CommonBytes:      totalCommonBytes,
+		PercentCommon:    percentCommon,
+		LargestCommonRgn: largestRegion,
+	}
+
+	return c.JSON(http.StatusOK, MultiFileCompareResponse{
+		CommonRegions: commonRegions,
+		Stats:         stats,
+		FileNames:     fileNames,
+		TotalRegions:  len(commonRegions),
+		Truncated:     truncated,
+	})
+}
+
+// GenerateMultiFileDiffYamlRequest represents a request to generate YAML
+type GenerateMultiFileDiffYamlRequest struct {
+	FileIDs       []uint         `json:"file_ids"`
+	CommonRegions []CommonRegion `json:"common_regions"`
+	FileNames     []string       `json:"file_names"`
+}
+
+// GenerateMultiFileDiffYaml generates a YAML configuration with diff section
+func (h *Handler) GenerateMultiFileDiffYaml(c echo.Context) error {
+	var req GenerateMultiFileDiffYamlRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
+	}
+
+	if len(req.CommonRegions) == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "No common regions provided"})
+	}
+
+	// Single color for all diff regions (light yellow for easy identification)
+	diffColor := "#FFE082"
+
+	// Build YAML content
+	yaml := "# Multi-file binary diff configuration\n"
+	yaml += "# Generated from comparison of:\n"
+	for i, name := range req.FileNames {
+		yaml += fmt.Sprintf("#   - %s", name)
+		if i < len(req.FileIDs) {
+			yaml += fmt.Sprintf(" (ID: %d)\n", req.FileIDs[i])
+		} else {
+			yaml += "\n"
+		}
+	}
+	yaml += "\n"
+	yaml += "diff:\n"
+
+	for i, region := range req.CommonRegions {
+		yaml += fmt.Sprintf("  common_region_%d:\n", i)
+
+		// Format offsets as hex array
+		yaml += "    offsets: ["
+		for j, offset := range region.Offsets {
+			if j > 0 {
+				yaml += ", "
+			}
+			yaml += fmt.Sprintf("0x%04X", offset)
+		}
+		yaml += "]\n"
+
+		// Format sizes as decimal array
+		yaml += "    sizes: ["
+		for j, size := range region.Sizes {
+			if j > 0 {
+				yaml += ", "
+			}
+			yaml += fmt.Sprintf("%d", size)
+		}
+		yaml += "]\n"
+
+		// Add file names
+		yaml += "    files: ["
+		for j, name := range req.FileNames {
+			if j > 0 {
+				yaml += ", "
+			}
+			yaml += fmt.Sprintf("\"%s\"", name)
+		}
+		yaml += "]\n"
+
+		// Use single color for all diff regions
+		yaml += fmt.Sprintf("    color: \"%s\"\n", diffColor)
+
+		if i < len(req.CommonRegions)-1 {
+			yaml += "\n"
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"yaml": yaml,
+	})
 }

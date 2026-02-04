@@ -51,6 +51,8 @@ func InitDB(path string) (*DB, error) {
 		&models.CompressionResult{},
 		&models.DecompressedFile{},
 		&models.RAGDocument{},
+		&models.HuffmanTable{},
+		&models.HuffmanTableEntry{},
 	); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}
