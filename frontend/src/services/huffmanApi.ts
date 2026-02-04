@@ -43,6 +43,19 @@ export interface DecodeHuffmanResponse {
   count: number;
 }
 
+export interface AnalyzeHuffmanRequest {
+  file_id: number;
+  offset: number;
+  length: number;
+  max_code_length: number;
+}
+
+export interface DetectedPattern {
+  pattern: string;
+  length: number;
+  count: number;
+}
+
 /**
  * Create a new Huffman table
  */
@@ -151,6 +164,31 @@ export async function decodeHuffmanSelection(
   request: DecodeHuffmanRequest
 ): Promise<DecodeHuffmanResponse> {
   const response = await fetch(`${API_BASE_URL}/huffman/decode`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Analyze binary data to detect potential Huffman patterns
+ */
+export async function analyzeHuffmanPatterns(
+  request: AnalyzeHuffmanRequest
+): Promise<{
+  patterns: DetectedPattern[];
+  total_bits: number;
+}> {
+  const response = await fetch(`${API_BASE_URL}/huffman/analyze`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
