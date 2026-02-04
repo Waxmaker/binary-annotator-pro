@@ -125,9 +125,9 @@ export function HuffmanCodeTable({
           </div>
         )}
 
-        <div className="flex-1 overflow-auto border rounded-lg">
+        <div className="flex-1 overflow-auto border rounded-lg relative">
           <Table>
-            <TableHeader className="sticky top-0 bg-background">
+            <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
                 <TableHead className="w-20">Symbol</TableHead>
                 <TableHead className="w-24">Code</TableHead>

@@ -214,7 +214,7 @@ export function HuffmanBinaryView({
         <div
           ref={containerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-auto bg-hex-background border rounded"
+          className="flex-1 overflow-auto bg-hex-background border rounded relative"
         >
           {bitsData.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">
