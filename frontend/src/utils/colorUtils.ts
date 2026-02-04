@@ -15,7 +15,7 @@ export interface HighlightRange {
   end: number;
   color: string;
   name: string;
-  type: 'search' | 'tag';
+  type: 'search' | 'tag' | 'diff';
 }
 
 export function getHighlightsForByte(
@@ -38,10 +38,16 @@ export function createHighlightStyle(highlights: HighlightRange[]): React.CSSPro
   });
 
   // Use the smallest (most specific) highlight color
-  const primaryColor = sortedHighlights[0].color;
+  const primaryHighlight = sortedHighlights[0];
+  const primaryColor = primaryHighlight.color;
+
+  // Lower opacity for diff highlights
+  const isDiff = primaryHighlight.type === 'diff';
+  const bgAlpha = isDiff ? 0.15 : 0.3;
+  const outlineAlpha = isDiff ? 0.4 : 0.6;
 
   return {
-    backgroundColor: hexToRgba(primaryColor, 0.3),
-    outline: `1px solid ${hexToRgba(primaryColor, 0.6)}`,
+    backgroundColor: hexToRgba(primaryColor, bgAlpha),
+    outline: `1px solid ${hexToRgba(primaryColor, outlineAlpha)}`,
   };
 }
