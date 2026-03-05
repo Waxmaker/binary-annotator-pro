@@ -128,4 +128,7 @@ func RegisterRoutes(e *echo.Echo, db *config.DB) {
 	e.POST("/huffman/decode", h.DecodeHuffmanSelection)
 	e.POST("/huffman/analyze", h.AnalyzeHuffmanPatterns)
 
+	// ECG Inspector
+	e.POST("/ecg-inspector/parse", h.ParseECGFile)
+
 }
