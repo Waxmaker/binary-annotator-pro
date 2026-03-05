@@ -40,6 +40,7 @@ import {
   ChevronDown,
   Menu,
   Binary,
+  Stethoscope,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -549,6 +550,10 @@ const Index = () => {
               <DropdownMenuItem onClick={() => navigate("/ecg-viewer")}>
                 <LineChart className="h-4 w-4 mr-2" />
                 Sample Viewer
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/ecg-inspector")}>
+                <Stethoscope className="h-4 w-4 mr-2" />
+                ECG Inspector
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setSettingsOpen(true)}>

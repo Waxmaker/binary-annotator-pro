@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Documentation from "./pages/Documentation";
 import NotFound from "./pages/NotFound";
 import HuffmanPage from "./pages/HuffmanPage";
+import EcgInspectorPage from "./pages/EcgInspectorPage";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/ecg-viewer" element={<EcgViewer />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/huffman" element={<HuffmanPage />} />
+            <Route path="/ecg-inspector" element={<EcgInspectorPage />} />
             <Route path="/documentation" element={<Documentation />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
